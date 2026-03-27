@@ -194,7 +194,8 @@ var paleo_nav = (function() {
           $("#universalSearchResult").css("display","none");
           return;
         }
-        d3.json(dataUrl + dataService + '/combined/auto.json?type=nav&name=' + autocompleteInput, function(error,result){
+          d3.json(dataUrl + dataService + '/combined/auto.json?type=nav&name=' +
+				  encodeURIComponent(autocompleteInput), function(error,result){
           var htmlResult = "";
           if (error) {htmlResult += "<div class='autocompleteError'>Error: server did not respond</div>"} //server is down or something
           else if (result.records.length == 0) {htmlResult += "<div class='autocompleteError'>No matching results for \"" + autocompleteInput + "\"</div>"} //no matches
