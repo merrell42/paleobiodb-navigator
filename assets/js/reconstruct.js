@@ -24,14 +24,14 @@ var reconstructMap = (function() {
     .projection(projection);
 
   function getReconstructContainerSize() {
-    var containerWidth = parseInt(d3.select("#graphics").style("width"), 10) - 15,
+    var containerWidth = parseInt(d3.select("#graphics").style("width"), 10),
       containerHeight;
 
     if (d3.select(".timeScale").style("visibility") === "hidden") {
-      containerHeight = window.innerHeight - 70;
+      containerHeight = window.innerHeight - 36;
     } else {
       var timeHeight = ($("#time").height() > 15) ? $("#time").height() : window.innerHeight / 5.6;
-      containerHeight = window.innerHeight - timeHeight - 70;
+      containerHeight = window.innerHeight - timeHeight - 36;
     }
 
     return {

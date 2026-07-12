@@ -18,7 +18,7 @@ i, text, .navbar-text, .navbar-brand, .filters, #interval, #age {
 .container {
   width: 100%;
   max-width: 2500px;
-  padding: 20px 0 0;
+  padding: 0;
 }
 nav {
   font-family: 'Raleway', sans-serif;
@@ -269,7 +269,7 @@ nav {
 }
 #graphicRow {
   width:100%;
-  margin-top: 33px;
+  margin-top: 36px;
   visibility: hidden;
 }
 #mapContainer {
@@ -1141,7 +1141,7 @@ br {
 }
 @media(max-width: 700px) {
   #graphicRow {
-    margin-top: 30px;
+    margin-top: 36px;
   }
   .mapCtrl {
     display: none;
