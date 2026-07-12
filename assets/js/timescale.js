@@ -23,7 +23,8 @@ var timeScale = (function() {
   var data = { id: 0, color: "#999", name: "Geologic Time", children: [] },
       interval_hash = { 0: data },
       currentInterval,
-      dragStart, transformStart;
+      dragStart, transformStart,
+      panBounds = { minX: 0, maxX: 960 };
 
   /* Distinguish between clicks and doubleclicks via 
      https://gist.github.com/tmcw/4067674 */
@@ -105,10 +106,20 @@ var timeScale = (function() {
         var currentDrag = [d3.event.sourceEvent.pageX, d3.event.sourceEvent.pageY];
         newX = (dragStart[0] - currentDrag[0]);
 
+        var scale = parseInt(d3.select(".timeScale").style("width")) / 961;
+        var viewWidth = parseInt(d3.select(".timeScale").style("width"));
+        // transform is translate(T)scale(S): screen = S * local + T
+        var maxTranslate = -panBounds.minX * scale;
+        var minTranslate = viewWidth - panBounds.maxX * scale;
+        var proposed = transformStart[0] + -newX;
+        if (minTranslate > maxTranslate) {
+          proposed = (minTranslate + maxTranslate) / 2;
+        } else {
+          proposed = Math.max(minTranslate, Math.min(maxTranslate, proposed));
+        }
+
         d3.select(".timeScale").select("g")
-          .attr("transform", function() {
-            return "translate(" + [ parseInt(transformStart[0] + -newX), 0 ] + ")scale(" + parseInt(d3.select(".timeScale").style("width"))/961 + ")";
-          });
+          .attr("transform", "translate(" + [parseInt(proposed), 0] + ")scale(" + scale + ")");
       });
 
     // Add class timeScale to whatever div was supplied
@@ -432,7 +443,30 @@ var timeScale = (function() {
       .each("end", function() { if (!--n) { labelTrans(d); }});
   }
 
+  function updatePanBounds() {
+    var minX = Infinity;
+    var maxX = -Infinity;
+    d3.selectAll(".timeScale #rectGroup rect").each(function() {
+      var el = d3.select(this);
+      var rx = parseFloat(el.attr("x"));
+      var rw = parseFloat(el.attr("width"));
+      if (rx < minX) {
+        minX = rx;
+      }
+      if (rx + rw > maxX) {
+        maxX = rx + rw;
+      }
+    });
+    if (isFinite(minX) && isFinite(maxX)) {
+      panBounds.minX = minX;
+      panBounds.maxX = maxX;
+    }
+  }
+
   function labelTrans(d) {
+    // Rect positions are final after goTo's transition; cache pan limits once.
+    updatePanBounds();
+
     // var n keeps track of the transition
     var n = 0,
         x = d3.scale.linear().range([0, 955]),
