@@ -325,6 +325,7 @@ color: rgb(245,245,245);
   fill: #EFEE69;
   stroke: #aaa;
   stroke-width: 0.02em;
+  vector-effect: non-scaling-stroke;
   opacity: 0.7;
 }
 .bins:hover, .binsHammer:hover {
@@ -577,6 +578,7 @@ color: rgb(245,245,245);
 }
 .collection {
   fill: #EFEE69;
+  vector-effect: non-scaling-stroke;
   opacity:0.7;
 }
 .collection:hover {

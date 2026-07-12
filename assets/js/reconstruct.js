@@ -66,9 +66,24 @@ var reconstructMap = (function() {
     return [size.width / 2, size.height / 2];
   }
 
+  function updateReconstructMarkerRadii() {
+    d3.selectAll("#reconstructContent circle.collection").attr("r", function (d) {
+      if (!d) {
+        return 0;
+      }
+      var screenR = d._screenR;
+      if (screenR == null) {
+        screenR = parseFloat(d3.select(this).attr("r")) * zoomScale;
+        d._screenR = screenR;
+      }
+      return screenR / zoomScale;
+    });
+  }
+
   function applyViewportTransform() {
     d3.select("#reconstructViewport")
       .attr("transform", "translate(" + zoomTranslate + ")scale(" + zoomScale + ")");
+    updateReconstructMarkerRadii();
   }
 
   function zoomBy(factor) {
@@ -331,12 +346,6 @@ var reconstructMap = (function() {
     "addToMap": function(data, interval, target) {
       var svg = target || d3.select("#reconstructContent");
 
-      var scale = d3.scale.linear()
-        .domain([1, 4240])
-        .range([4, 15]);
-
-      var zoom = 2;
-
       // Bind the data
       svg.selectAll("circle")
         .data(data)
@@ -345,7 +354,10 @@ var reconstructMap = (function() {
         .style("fill", function() {
           return (interval.col) ? interval.col : interval.color;
         })
-        .attr("r", function(d) { return scale(d.properties.nco)*0.7;})
+        .attr("r", function(d) {
+          d._screenR = navMap.binScreenRadius(d.properties.nco, 2);
+          return d._screenR / zoomScale;
+        })
         .attr("cx", function(d) {
           var coords = projection(d.geometry.coordinates);
           return coords[0];

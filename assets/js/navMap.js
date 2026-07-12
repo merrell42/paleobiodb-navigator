@@ -82,6 +82,10 @@ var navMap = (function () {
     leafletCompatScalePerLevel: 0.85
   };
 
+  var MARKER = {
+    radiusScale: 1.2
+  };
+
   var width = LAYOUT.mapBaseWidth,
     height = LAYOUT.mapBaseHeight,
     baseProjectionScale = LAYOUT.projectionScale,
@@ -104,9 +108,28 @@ var navMap = (function () {
       parseInt(d3.select("#map").style("height"), 10) < 1;
   }
 
+  function markerRadius(screenRadius) {
+    return screenRadius / svgZoomScale;
+  }
+
+  function updateSvgMarkerRadii() {
+    d3.selectAll("#svgBinHolder circle").attr("r", function (d) {
+      if (!d) {
+        return 0;
+      }
+      var screenR = d._screenR;
+      if (screenR == null) {
+        screenR = parseFloat(d3.select(this).attr("r")) * svgZoomScale;
+        d._screenR = screenR;
+      }
+      return markerRadius(screenR);
+    });
+  }
+
   function applySvgViewportTransform() {
     d3.select("#svgMapViewport")
       .attr("transform", "translate(" + svgZoomTranslate + ")scale(" + svgZoomScale + ")");
+    updateSvgMarkerRadii();
   }
 
   function getTimeScaleHeight() {
@@ -857,7 +880,11 @@ var navMap = (function () {
       if (d3.select("#binHolder").selectAll(".bins")[0].length < 30) {
         points.attr("r", 8);
       } else {
-        points.attr("r", function (d) { return scale(d.nco) * navMap.multiplier(zoom) < 4 ? 4 : scale(d.nco) * navMap.multiplier(zoom); });
+        points.attr("r", function (d) {
+          var screenR = scale(d.nco) < 4 ? 4 : scale(d.nco);
+          d._screenR = screenR;
+          return screenR;
+        });
       }
     }
 
@@ -866,9 +893,7 @@ var navMap = (function () {
     d3.select(".leaflet-zoom-hide").style("visibility", "visible");
   },
 
-  "refreshSvgBins": function(data, level) {
-    navMap.summarize(data);
-
+  "binScreenRadius": function(nco, level) {
     var scale = d3.scale.linear()
       .domain([1, 6000])
       .range([4, 10]);
@@ -879,8 +904,13 @@ var navMap = (function () {
         .range([4, 10]);
     }
 
-    var g = d3.select("#svgBinHolder"),
-      zoomLevel = 2;
+    return scale(nco) * navMap.multiplier(2) * MARKER.radiusScale;
+  },
+
+  "refreshSvgBins": function(data, level) {
+    navMap.summarize(data);
+
+    var g = d3.select("#svgBinHolder");
 
     g.selectAll("circle").remove();
 
@@ -898,7 +928,11 @@ var navMap = (function () {
     bins
       .style("fill", function (d) { return (timeScale.interval_hash[d.cxi]) ? timeScale.interval_hash[d.cxi].color : "#000"; })
       .attr("id", function (d) { return "p" + d.cxi; })
-      .attr("r", function (d) { return scale(d.nco) * navMap.multiplier(zoomLevel); })
+      .attr("r", function (d) {
+        var screenR = navMap.binScreenRadius(d.nco, level);
+        d._screenR = screenR;
+        return markerRadius(screenR);
+      })
       .attr("cx", function (d) {
         var coords = projection([d.lng, d.lat]);
         return coords ? coords[0] : 0;
@@ -955,7 +989,10 @@ var navMap = (function () {
 
     points
       .style("fill", function (d) { return (timeScale.interval_hash[d.cxi]) ? timeScale.interval_hash[d.cxi].color : "#000"; })
-      .attr("r", 10)
+      .attr("r", function (d) {
+        d._screenR = 10;
+        return markerRadius(10);
+      })
       .attr("cx", function (d) {
         var coords = projection([d.lng, d.lat]);
         return coords ? coords[0] : 0;
