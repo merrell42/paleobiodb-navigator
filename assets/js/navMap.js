@@ -73,7 +73,7 @@ var navMap = (function () {
   var ZOOM = {
     minScale: 1,
     maxScale: 8,
-    buttonStepFactor: 1.5,
+    zoomFactor: 1.5,
     dataRefreshDebounceMs: 300,
     detailGlobalMax: 2.5,
     detailRegionalMax: 4,
@@ -382,14 +382,15 @@ var navMap = (function () {
         .attr("class", "fill")
         .attr("xlink:href", "#mapSphere");
 
-      svgMapViewport.append("g")
-        .attr("id", "svgBinHolder");
-
+      // Land must be under the bin holder so markers stay visible
       d3.json("build/js/countries_1e5.json", function (error, data) {
         svgMapViewport.append("path")
           .datum(topojson.feature(data, data.objects.countries))
           .attr("class", "countries")
           .attr("d", path);
+
+        svgMapViewport.append("g")
+          .attr("id", "svgBinHolder");
 
         //TODO: Yeaaaah...
         reconstructMap.resize();
@@ -421,7 +422,7 @@ var navMap = (function () {
 
     "zoomIn": function () {
       if (isSvgMapActive()) {
-        svgZoomBy(ZOOM.buttonStepFactor);
+        svgZoomBy(ZOOM.zoomFactor);
       } else if (map) {
         map.zoomIn();
       }
@@ -429,7 +430,7 @@ var navMap = (function () {
 
     "zoomOut": function () {
       if (isSvgMapActive()) {
-        svgZoomBy(1 / ZOOM.buttonStepFactor);
+        svgZoomBy(1 / ZOOM.zoomFactor);
       } else if (map) {
         map.zoomOut();
       }
