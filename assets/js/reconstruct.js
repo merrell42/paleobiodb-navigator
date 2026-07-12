@@ -89,10 +89,10 @@ var reconstructMap = (function() {
   function zoomBy(factor) {
     var center = reconstructZoomCenter(),
         newScale = Math.max(1, Math.min(8, zoomScale * factor)),
-        newTranslate = [
+        newTranslate = constrainMapTranslate(newScale, [
           center[0] - (center[0] - zoomTranslate[0]) * (newScale / zoomScale),
           center[1] - (center[1] - zoomTranslate[1]) * (newScale / zoomScale)
-        ];
+        ], getReconstructContainerSize());
 
     zoomScale = newScale;
     zoomTranslate = newTranslate;
@@ -129,8 +129,9 @@ var reconstructMap = (function() {
       zoomBehavior = d3.behavior.zoom()
         .scaleExtent([1, 8])
         .on("zoom", function() {
-          zoomTranslate = d3.event.translate;
           zoomScale = d3.event.scale;
+          zoomTranslate = constrainMapTranslate(zoomScale, d3.event.translate, getReconstructContainerSize());
+          zoomBehavior.translate(zoomTranslate);
           applyViewportTransform();
         });
 
@@ -480,6 +481,12 @@ var reconstructMap = (function() {
       d3.select("#reconstructMap").select("svg")
         .style("height", size.height + "px")
         .style("width", size.width + "px");
+
+      zoomTranslate = constrainMapTranslate(zoomScale, zoomTranslate, getReconstructContainerSize());
+      if (zoomBehavior) {
+        zoomBehavior.scale(zoomScale).translate(zoomTranslate);
+      }
+      applyViewportTransform();
 
       d3.select("#reconstructMapRefContainer")
         .style("height", function() {

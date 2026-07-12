@@ -4,6 +4,20 @@ var map;
 
 var cartoVoyager, cartoVoyagerLabels;
 
+// Keep the map inside the viewport.
+function constrainMapTranslate(scale, translate, size, minScale) {
+  if (minScale == null) {
+    minScale = 1;
+  }
+
+  var w = size.width,
+    h = size.height;
+
+  return [
+    Math.min(0, Math.max(w * (1 - scale), translate[0])),
+    Math.min(0, Math.max(h * (1 - scale), translate[1]))
+  ];
+}
 
 var navMap = (function () {
 
@@ -184,10 +198,10 @@ var navMap = (function () {
   function svgZoomBy(factor) {
     var center = svgZoomCenter(),
       newScale = Math.max(ZOOM.minScale, Math.min(ZOOM.maxScale, svgZoomScale * factor)),
-      newTranslate = [
+      newTranslate = constrainMapTranslate(newScale, [
         center[0] - (center[0] - svgZoomTranslate[0]) * (newScale / svgZoomScale),
         center[1] - (center[1] - svgZoomTranslate[1]) * (newScale / svgZoomScale)
-      ];
+      ], getSvgContainerSize(), ZOOM.minScale);
 
     svgZoomScale = newScale;
     svgZoomTranslate = newTranslate;
@@ -382,8 +396,9 @@ var navMap = (function () {
       svgZoomBehavior = d3.behavior.zoom()
         .scaleExtent([ZOOM.minScale, ZOOM.maxScale])
         .on("zoom", function () {
-          svgZoomTranslate = d3.event.translate;
           svgZoomScale = d3.event.scale;
+          svgZoomTranslate = constrainMapTranslate(svgZoomScale, d3.event.translate, getSvgContainerSize(), ZOOM.minScale);
+          svgZoomBehavior.translate(svgZoomTranslate);
           applySvgViewportTransform();
           scheduleSvgRefresh();
         });
@@ -480,7 +495,7 @@ var navMap = (function () {
         cy = center[1];
 
       svgZoomScale = targetScale;
-      svgZoomTranslate = [cx - pt[0] * targetScale, cy - pt[1] * targetScale];
+      svgZoomTranslate = constrainMapTranslate(targetScale, [cx - pt[0] * targetScale, cy - pt[1] * targetScale], getSvgContainerSize(), ZOOM.minScale);
       if (svgZoomBehavior) {
         svgZoomBehavior.scale(targetScale).translate(svgZoomTranslate);
       }
@@ -1850,6 +1865,12 @@ var navMap = (function () {
     d3.select("#svgMap").select("svg")
       .style("height", size.height + "px")
       .style("width", size.width + "px");
+
+    svgZoomTranslate = constrainMapTranslate(svgZoomScale, svgZoomTranslate, getSvgContainerSize(), ZOOM.minScale);
+    if (svgZoomBehavior) {
+      svgZoomBehavior.scale(svgZoomScale).translate(svgZoomTranslate);
+    }
+    applySvgViewportTransform();
   },
 
   "resize": function() {
