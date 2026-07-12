@@ -268,6 +268,14 @@ color: rgb(245,245,245);
   height:400px;
   width:100%;
 }
+/* Leaflet defaults to a grab hand; use the normal arrow instead */
+.leaflet-container {
+  cursor: default;
+}
+.leaflet-dragging .leaflet-container,
+.leaflet-dragging .leaflet-clickable {
+  cursor: move;
+}
 .leaflet-bottom.leaflet-right {
   z-index: 0;
 }

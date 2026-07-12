@@ -6,15 +6,15 @@ var paleo_nav = (function() {
       dataService = "/data1.2",
       country_name;
 
-  // if ( window.location.search.indexOf("local") > -1 ) {
-  //   dataUrl = window.location.origin + ":3000";
-  //   testUrl = window.location.origin + ":3000";
+  if ( window.location.search.indexOf("local") > -1 ) {
+    dataUrl = window.location.origin + ":3000";
+    testUrl = window.location.origin + ":3000";
 
-  // } else if (window.location.search.indexOf("test") > -1) {
-  //   dataUrl = "https://training.paleobiodb.org";
-  // } else if ( window.location.hostname === "localhost" ) {
-  //   dataUrl = "https://paleobiodb.org";
-  // }
+  } else if (window.location.search.indexOf("test") > -1) {
+    dataUrl = "https://training.paleobiodb.org";
+  } else if ( window.location.hostname === "localhost" ) {
+    dataUrl = "https://paleobiodb.org";
+  }
 
   var prevalencePartial, prevalenceSummaryPartial;
 
