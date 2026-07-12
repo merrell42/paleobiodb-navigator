@@ -466,25 +466,42 @@ var timeScale = (function() {
     resize();
   }
 
+  // Darken a hex color while preserving hue. Amount: 0–1 fraction of original brightness.
+  function darkenColor(color, amount) {
+    if (!color) {
+      return "#333";
+    }
+    var hex = String(color).replace("#", "");
+    if (hex.length === 3) {
+      hex = hex.split("").map(function(c) { return c + c; }).join("");
+    }
+    var num = parseInt(hex, 16);
+    if (isNaN(num)) return "#333";
+    var r = Math.max(0, Math.round(((num >> 16) & 0xff) * amount));
+    var g = Math.max(0, Math.round(((num >> 8) & 0xff) * amount));
+    var b = Math.max(0, Math.round((num & 0xff) * amount));
+    return "#" + (0x1000000 + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  }
+
   // Highlight a given time interval
   function highlight(d) {
     // Check if many intervals are being highlighted. If many, don't reset;
     unhighlight();
+    var id;
     if (d.cxi) {
-      var id = d.cxi;
-      d3.selectAll("rect#t" + d.cxi).style("stroke", "#000").moveToFront();
-      d3.selectAll("#l" + d.cxi).moveToFront();
+      id = d.cxi;
     } else if (typeof d == "string") {
-      var id = d3.selectAll('rect').filter(function(e) {
+      id = d3.selectAll('rect').filter(function(e) {
         return e.name === d;
       }).attr("id");
       id = id.replace("t", "");
     } else {
-      var id = d3.select(d).attr("id");
+      id = d3.select(d).attr("id");
       id = id.replace("p", "");
     }
 
-    d3.selectAll("rect#t" + id).style("stroke", "#000").moveToFront();
+    var fill = (interval_hash[id] && interval_hash[id].color) || "#000";
+    d3.selectAll("rect#t" + id).style("stroke", darkenColor(fill, 0.25)).moveToFront();
     d3.selectAll("#l" + id).moveToFront();
     d3.selectAll(".abbr").moveToFront();
   }

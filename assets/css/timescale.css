@@ -3,7 +3,14 @@
   font-weight: 100;
   font-size: 0.8em;
   color:#333;
-  cursor: pointer;
+  cursor: default;
+}
+.timeScale .fullName,
+.timeScale .abbr {
+  pointer-events: none;
+}
+.timeScale rect:hover {
+  filter: brightness(1.25);
 }
 rect {
   stroke: #fff;
