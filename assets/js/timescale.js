@@ -20,7 +20,7 @@ d3.selection.prototype.dblTap = function(callback) {
 
 var timeScale = (function() {
 
-  var data = { id: 0, color: "#000000", name: "Geologic Time", children: [] },
+  var data = { id: 0, color: "#4b4b4b", name: "Geologic Time", children: [] },
       interval_hash = { 0: data },
       currentInterval,
       dragStart, transformStart;
@@ -223,8 +223,8 @@ var timeScale = (function() {
         .attr("id", "textGroup");
 
       var fontSizeHash = {
-        "0": 0.61,
-        "1": 0.89,
+        "0": 0.72,
+        "1": 0.72,
         "2": 0.72,
         "3": 0.61,
         "4": 0.55,
