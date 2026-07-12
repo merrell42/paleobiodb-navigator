@@ -18,7 +18,7 @@ i, text, .navbar-text, .navbar-brand, .filters, #interval, #age {
 .container {
   width: 100%;
   max-width: 2500px;
-  padding: 20px 0;
+  padding: 20px 0 0;
 }
 nav {
   font-family: 'Raleway', sans-serif;
