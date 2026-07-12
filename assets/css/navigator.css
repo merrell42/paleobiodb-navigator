@@ -311,8 +311,8 @@ color: rgb(245,245,245);
   pointer-events: none;
 }
 .countries {
-  stroke: #000;
-  fill: #FEFBFB;
+  stroke: #c9c4b8;
+  fill: #fff6df;
   stroke-width: 0.5;
 }
 .bins {
@@ -619,7 +619,7 @@ td:first-child {
   stroke-width: 3px;
 }
 .fill {
-  fill: #000;
+  fill: #97b7cb;
 }
 #reconstructMap {
   width:100%;
@@ -677,7 +677,7 @@ td:first-child {
   border-top:0;
 }
 .plates {
-  fill: #ffffff;
+  fill: #fff6df;
   stroke: none;
   stroke-width: 0.05em;
   opacity:1;
