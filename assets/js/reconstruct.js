@@ -199,7 +199,6 @@ var reconstructMap = (function() {
       
       reconstructing = true;
       reconstructMap.reset();
-      reconstructMap.resetZoom();
       
       paleo_nav.showLoading();
 
