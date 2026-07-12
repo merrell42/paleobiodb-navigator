@@ -6,6 +6,7 @@ var reconstructMap = (function() {
       rotatedPoints;
   
   var currentURL = '';
+  var currentRotateId = 0;
 
   var height = 500,
       width = 960,
@@ -198,14 +199,12 @@ var reconstructMap = (function() {
       }
       
       reconstructing = true;
-      reconstructMap.reset();
-      
-      paleo_nav.showLoading();
+      var rotateId = ++currentRotateId;
 
-      // Listener for whether or not a previous bounding box should be shown
-      //if (window.navMap && parseInt(d3.select("#map").style("height")) > 0) {
-        //reconstructMap.addBBox(interval.mid);
-      //} 
+      // Drop any incomplete pending layer from a previous switch
+      d3.select("#reconstructContentPending").remove();
+
+      paleo_nav.showLoading();
 
       // Update UI components with the current reconstruction info
       d3.select('#interval').text(name);
@@ -225,22 +224,28 @@ var reconstructMap = (function() {
       d3.select("#selectedInterval")
         .select("button")
           .style("display", "none");
-          
+
+      // Build the next map off-screen so the current view stays until ready
       var svg = d3.select("#reconstructViewport")
           .append("g")
-          .attr("id", "reconstructContent");
-      
-      // New code by Michael M.
+          .attr("id", "reconstructContentPending")
+          .style("visibility", "hidden");
       
       var filename = name.split(' ').join('_');
       
       var reconstructed_clusters = [];
       
       d3.json(url, function(error, data) {
-        
-        var total_colls = 0,
-            total_occs = 0;
-        
+        if (rotateId !== currentRotateId) {
+          return;
+        }
+        if (error || !data || !data.records) {
+          svg.remove();
+          reconstructing = false;
+          paleo_nav.hideLoading();
+          return;
+        }
+
         data.records.forEach(function(d) {
           
           if ( d.pla || d.pln )
@@ -255,14 +260,21 @@ var reconstructMap = (function() {
                                           "noc": d.noc } };
             
             reconstructed_clusters.push(point);
-            
-            if ( d.nco ) total_colls += d.nco;
-            if ( d.noc ) total_occs += d.noc;
           }
         });
         
         // Load the rotated plates
         d3.json("build/js/plates/" + filename + ".json", function(er, plates) {
+          if (rotateId !== currentRotateId) {
+            svg.remove();
+            return;
+          }
+          if (er || !plates) {
+            svg.remove();
+            reconstructing = false;
+            paleo_nav.hideLoading();
+            return;
+          }
           
           // Add the rotated plates to the map
           svg.selectAll(".plateLines")
@@ -273,111 +285,51 @@ var reconstructMap = (function() {
           
           timeScale.highlight(name);
           
-          // Load the coastlines
+          // Load the coastlines, then reveal the completed layer in one paint
           d3.json("build/js/coastlines/" + filename + ".json", function(er, coastlines) {
-            svg.selectAll(".coastlines")
-              .data(topojson.feature(coastlines, coastlines.objects[filename]).features)
-            .enter().append("path")
-              .attr("class", "coastlines")
-              .attr("d", path);
+            if (rotateId !== currentRotateId) {
+              svg.remove();
+              return;
+            }
+
+            if (!er && coastlines) {
+              svg.selectAll(".coastlines")
+                .data(topojson.feature(coastlines, coastlines.objects[filename]).features)
+              .enter().append("path")
+                .attr("class", "coastlines")
+                .attr("d", path);
+            }
+
+            // Switch to reconstruct map now
+            if(parseInt(d3.select("#map").style("height")) > 1) {
+              d3.select("#map").style("display", "none");
+            }
+            
+            d3.select("#svgMap").style("display", "none");
+
+            d3.select("#reconstructMap").style("display", "block");
+
+            // Hide the info window
+            d3.select(".info")
+              .html('')
+              .style("display", "none");
+
+            reconstructMap.addToMap(reconstructed_clusters, interval, svg);
+
+            // Swap layers in the same frame so the old map never blanks out
+            d3.select("#reconstructContent").remove();
+            svg.attr("id", "reconstructContent")
+              .style("visibility", "visible");
+
+            reconstructMap.resize();
           });
-          
-          // Switch to reconstruct map now
-          if(parseInt(d3.select("#map").style("height")) > 1) {
-            d3.select("#map").style("display", "none");
-          }
-          
-          d3.select("#svgMap").style("display", "none");
-
-          d3.select("#reconstructMap").style("display", "block");
-          
-          // Make sure the reconstruct map is properly sized for the window
-          reconstructMap.resize();
-
-          // Hide the info window
-          d3.select(".info")
-            .html('')
-            .style("display", "none");
-
-          // Load the rotated intervals
-          // d3.json("build/js/rotatedIntervals/" + filename + ".json", function(err, result) {
-          // //TODO: Double check that the key is unpredictable...using filename might work
-          //   var keys = Object.keys(result.objects),
-          //       key = keys[0];
-            
-          //   rotatedPoints = topojson.feature(result, result.objects[key]);
-
-            /* If there is a taxon or contributor filter applied to the map, ask the API
-               for all the level2 bins with those filters applied. */
-            // if (navMap.filters.exist.taxon || navMap.filters.exist.personFilter || navMap.filters.exist.stratigraphy) {
-            //   var url = paleo_nav.dataUrl + paleo_nav.dataService + '/colls/summary.json?lngmin=-180&lngmax=180&latmin=-90&latmax=90&level=3&limit=99999';
-
-            //   url = navMap.parseURL(url); 
-
-            //   d3.json(url, function(wrong, right) {
-            //     // var pbdbData = right.records;
-            //     var pbdbData = right.records.map(function(d) {d.oid = d.oid.replace('clu:',''); return d;}); //return to previous version once we rebuild rotated intervals from new data service with abbreviations in oids
-            //     /* Instead of having to ask GPlates to rotate a ton of points, we'll simply
-            //        compare our filtered, non-rotated dataset with our unfiltered, rotated
-            //        dataset */
-            //     var matches = [];
-            //     pbdbData.forEach(function(d) {
-            //       rotatedPoints.features.forEach(function(e) {
-            //         if (d.oid == e.properties.NAME) {
-            //           matches.push(e);
-            //         }
-            //       });
-            //     });
-
-            //     matches.forEach(function(d) {
-            //       for (var i=0;i<response.records.length;i++) {
-            //         if (parseInt(d.properties.NAME) == response.records[i].oid) {
-            //           d.properties.nco = response.records[i].nco;
-            //           d.properties.noc = response.records[i].noc;
-            //           d.properties.oid = response.records[i].oid;
-            //         }
-            //       }
-            //     });
-
-            //     // Now that we know which bins to display, add them to the map
-            //     reconstructMap.addToMap(matches, interval);
-            //     navMap.summarize(right);
-            //   });
-            // } else {
-              /* If there is only a time filter applied, simply match the rotated points to the
-                 unrotated points so that they have useful data bound to them */
-              // rotatedPoints.features.forEach(function(d) {
-              //   for (var i=0;i<response.records.length;i++) {
-              //     if (parseInt(d.properties.NAME) == response.records[i].oid) {
-              //       d.properties.nco = response.records[i].nco;
-              //       d.properties.noc = response.records[i].noc;
-              //       d.properties.oid = response.records[i].oid;
-              //     }
-              //   }
-              // });
-              // rotatedPoints.features.forEach(function(d) {
-              //   for (var i=0;i<data.records.length;i++) {
-              //     if ('clu:' + d.properties.NAME == data.records[i].oid) {
-              //       d.properties.nco = data.records[i].nco;
-              //       d.properties.noc = data.records[i].noc;
-              //       d.properties.oid = data.records[i].oid;
-              //     }
-              //   }
-              // });
-            
-              // Now that the data is bound, add them to the reconstruction map
-              // reconstructMap.addToMap(rotatedPoints.features, interval);
-          reconstructMap.addToMap(reconstructed_clusters, interval);
-          
-              // navMap.summarize(response);
-            // }
         }); // End plate callback
             
       }); // end nonrotated point callback
     },
     
-    "addToMap": function(data, interval) {
-      var svg = d3.select("#reconstructContent");
+    "addToMap": function(data, interval, target) {
+      var svg = target || d3.select("#reconstructContent");
 
       var scale = d3.scale.linear()
         .domain([1, 4240])
@@ -526,6 +478,7 @@ var reconstructMap = (function() {
     "reset": function() {
       // Completely reset the reconstruction map
       d3.select("#reconstructContent").remove();
+      d3.select("#reconstructContentPending").remove();
       d3.select("#interval").html("");
       d3.select("#age").html("");
     },
