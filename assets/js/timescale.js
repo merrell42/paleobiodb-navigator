@@ -75,6 +75,15 @@ var timeScale = (function() {
       else return 0;
   }
 
+  function intervalTitle(d) {
+    if (d.early_age == null || d.late_age == null) {
+      return d.name;
+    }
+    var early = d.early_age.toFixed(1);
+    var late = d.late_age.toFixed(1);
+    return d.name + " (" + early + " - " + late + " mya)";
+  }
+
   function init(div, height, callbackFunc) {
     var width = 960,
         x = d3.scale.linear().range([0, width - 5]),
@@ -110,10 +119,6 @@ var timeScale = (function() {
         .attr("width", width)
         .attr("height", height)
         .append("g");
-
-    var scale = time.append("g")
-      .attr("id", "tickBar")
-      .attr("transform", "translate(0," + (height + 15) + ")");
 
     // Load the time scale data
     d3.json(paleo_nav.dataUrl + paleo_nav.dataService + "/intervals/list.json?scale=1&order=age.desc&max_ma=4100", function(error, result) {
@@ -164,60 +169,13 @@ var timeScale = (function() {
             setTimeout(goTo(d), 500);
           })
         .append("svg:title")
-          .text(function(d) { return d.name; });
+          .text(intervalTitle);
         ccRect.on("dblclick", function(d) {
           goTo(d.target.__data__);
         });
         ccRect.on("click", function(d) {
           mapFilter(d.target.__data__);
         });
-
-      // Scale bar for the bottom of the graph
-      var scaleBar = scale.selectAll("rect")
-          .data(partition.nodes(data));
-
-      var hash = scaleBar.enter().append("g")
-        .attr("class", function(d) {
-          return "tickGroup s" + ((typeof(d.level) === "undefined") ? 0 : d.level);
-        })
-        .attr("transform", function(d) { return "translate(" + x(d.x) + ", -20)"});
-
-      hash.append("line")
-        .attr("x1", 0)
-        .attr("y1", 7.5)
-        .attr("x2", 0)
-        .attr("y2", 12)
-        .style("stroke-width", "0.05em");
-
-      hash.append("text")
-        .attr("x", 0)
-        .attr("y", function() { return (height/6 * 0.55 + 12) * 1.05 })
-        .style("text-anchor", function(d) { return (d.early_age === 0.0117) ? "end" : "middle"; })
-        .style("font-size", function() { return height/6 * 0.55 })
-        .style("fill", "#777")
-        .text(function(d) {return d.early_age});
-
-      // Create a tick for year 0
-      var now = scale.append("g")
-        .data([{x:1, y:0}])
-        .attr("class", "tickGroup s1 s2 s3 s4 s5")
-        .attr("transform","translate(955, -20)");
-
-      now.append("line")
-        .attr("x1", 0)
-        .attr("y1", 7.5)
-        .attr("x2", 0)
-        .attr("y2", 12)
-        .style("stroke-width", "0.05em");
-
-      now.append("text")
-        .attr("x", 0)
-        .attr("y", function() { return (height/6 * 0.55 + 12) * 1.05 })
-        .attr("id", "now")
-        .style("text-anchor", "end")
-        .style("font-size", function() { return height/6 * 0.55 })
-        .style("fill", "#777")
-        .text("0");
 
       var textGroup = time.append("g")
         .attr("id", "textGroup");
@@ -251,7 +209,7 @@ var timeScale = (function() {
             setTimeout(goTo(d), 500);
           })
         .append("svg:title")
-          .text(function(d) { return d.name; });
+          .text(intervalTitle);
 
         ccFull.on("dblclick", function(d) {
           goTo(d.target.__data__);
@@ -280,7 +238,7 @@ var timeScale = (function() {
             setTimeout(goTo(d), 500);
           })
         .append("svg:title")
-          .text(function(d) { return d.name; });
+          .text(intervalTitle);
           
         ccAbbr.on("dblclick", function(d) {
           goTo(d.target.__data__);
@@ -443,12 +401,6 @@ var timeScale = (function() {
     // Stores the currently focused time interval for state restoration purposes
     timeScale.currentInterval = d;
 
-    // Adjust the bottom scale
-    var depth = (d.depth != 'undefined') ? parseInt(d.depth) + 1 : 1;
-    d3.selectAll(".scale").style("display", "none");
-    d3.selectAll(".tickGroup").style("display", "none");
-    d3.selectAll(".s" + depth).style("display", "block");
-
     // Reset panning  
     d3.select(".timeScale g")
       .attr("transform", function() {
@@ -470,20 +422,6 @@ var timeScale = (function() {
     d3.selectAll(".abbr")
       .style("fill", "rgba(0,0,0,0)")
       .style("display", "block");
-
-    d3.selectAll(".tickGroup").transition()
-      .duration(750)
-      .attr("transform", function(d) {
-        d3.select(this).selectAll("text").style("text-anchor", "middle");
-        if (x(d.x) == 5) {
-          d3.select(this).select("text")
-            .style("text-anchor", "start");
-        } else if (x(d.x) == 955) {
-          d3.select(this).select("text")
-            .style("text-anchor", "end");
-        }
-        return "translate(" + x(d.x) + ", -20)"; 
-      });
 
     // When complete, calls labelTrans() 
     d3.selectAll("rect").transition()
