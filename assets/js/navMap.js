@@ -97,7 +97,8 @@ var navMap = (function () {
   };
 
   var MARKER = {
-    radiusScale: 1.2
+    radiusScale: 1.2,
+    collectionRadius: 5.5
   };
 
   var width = LAYOUT.mapBaseWidth,
@@ -886,7 +887,7 @@ var navMap = (function () {
       // Scale for collections
       var scale = d3.scale.linear()
         .domain([1, 400])
-        .range([12, 30]);
+        .range([MARKER.collectionRadius, MARKER.collectionRadius * 1.6]);
     }
     points.attr("cx", function (d) { return map.latLngToLayerPoint([d.lat, d.lng]).x });
     points.attr("cy", function (d) { return map.latLngToLayerPoint([d.lat, d.lng]).y });
@@ -894,10 +895,10 @@ var navMap = (function () {
       clusters.attr("cx", function (d) { return map.latLngToLayerPoint([d.lat, d.lng]).x });
       clusters.attr("cy", function (d) { return map.latLngToLayerPoint([d.lat, d.lng]).y });
       clusters.attr("r", function (d) { return scale(d.members.length); })
-      points.attr("r", 12);
+      points.attr("r", MARKER.collectionRadius);
     } else {
       if (d3.select("#binHolder").selectAll(".bins")[0].length < 30) {
-        points.attr("r", 8);
+        points.attr("r", MARKER.collectionRadius);
       } else {
         points.attr("r", function (d) {
           var screenR = scale(d.nco) < 4 ? 4 : scale(d.nco);
@@ -989,10 +990,7 @@ var navMap = (function () {
   "refreshSvgCollections": function(data) {
     navMap.summarize(data);
 
-    var g = d3.select("#svgBinHolder"),
-      scale = d3.scale.linear()
-        .domain([1, 400])
-        .range([8, 20]);
+    var g = d3.select("#svgBinHolder");
 
     g.selectAll("circle").remove();
 
@@ -1009,8 +1007,8 @@ var navMap = (function () {
     points
       .style("fill", function (d) { return (timeScale.interval_hash[d.cxi]) ? timeScale.interval_hash[d.cxi].color : "#000"; })
       .attr("r", function (d) {
-        d._screenR = 10;
-        return markerRadius(10);
+        d._screenR = MARKER.collectionRadius;
+        return markerRadius(MARKER.collectionRadius);
       })
       .attr("cx", function (d) {
         var coords = projection([d.lng, d.lat]);
