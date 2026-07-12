@@ -20,7 +20,7 @@ d3.selection.prototype.dblTap = function(callback) {
 
 var timeScale = (function() {
 
-  var data = { id: 0, color: "#4b4b4b", name: "Geologic Time", children: [] },
+  var data = { id: 0, color: "#999", name: "Geologic Time", children: [] },
       interval_hash = { 0: data },
       currentInterval,
       dragStart, transformStart;
@@ -519,7 +519,7 @@ var timeScale = (function() {
       .each("end", function() { 
         if (!--n) {
           labelLevels(d);
-          d3.select("#l0").style("fill", "#fff");
+          d3.select("#l0").style("fill", "#333");
         } else {
           d3.selectAll(".fullName").style("fill", "#333");
           d3.selectAll(".abbr").style("fill", "#333");
