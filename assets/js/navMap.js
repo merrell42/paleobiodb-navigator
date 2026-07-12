@@ -417,6 +417,10 @@ var navMap = (function () {
         .attr("d", path);
 
       svgMapViewport.append("use")
+        .attr("class", "stroke")
+        .attr("xlink:href", "#mapSphere");
+
+      svgMapViewport.append("use")
         .attr("class", "fill")
         .attr("xlink:href", "#mapSphere");
 
