@@ -1036,6 +1036,8 @@ br {
 
 .axis path,
 .axis line {
+  fill: none;
+  stroke: #777;
   shape-rendering: crispEdges;
 }
 

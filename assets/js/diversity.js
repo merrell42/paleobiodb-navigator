@@ -1,8 +1,10 @@
 var diversityPlot = (function() {
-  var margin = {top: 0, right: 20, bottom: 80, left: 80},
-      padding = {top: 0, right: 0, bottom: 0, left: 80},
-      width = 960,
-      height = 800 - margin.top - margin.bottom,
+  var margin = {top: 16, right: 56, bottom: 68, left: 78},
+      padding = {top: 0, right: 0, bottom: 0, left: 0},
+      width = 720,
+      height = 420,
+      plotHeight = height - margin.top - margin.bottom,
+      plotWidth = width - margin.left - margin.right,
       currentRequest;
 
   // Fetch diversity data from PBDB
@@ -35,33 +37,24 @@ var diversityPlot = (function() {
     });
   }
 
+  // Pad the data age range slightly so points are not flush to the plot edges
+  function ageDomain(data) {
+    var maxAge = d3.max(data, function(d) { return d.eag; }),
+        minAge = d3.min(data, function(d) { return d.lag; }),
+        span = Math.max(maxAge - minAge, 1),
+        pad = Math.max(span * 0.03, 0.5);
+    return {
+      max: maxAge + pad,
+      min: Math.max(0, minAge - pad)
+    };
+  }
+
   // Get appropriate timescale
   function getTimescale(data,full) {
-    // Figure out how much timescale we need
-    var maxAge = data[data.length - 1].eag,
-        minAge = data[0].lag;
-    
-    var eras = [
-      {"nam": "Neoproterozoic", "lag": 538.8, "eag": 1000},
-      {"nam": "Paleozoic", "lag": 251.902, "eag": 538.8},
-      {"nam": "Mesozoic", "lag": 66, "eag": 251.902},
-      {"nam": "Cenozoic", "lag": 0, "eag": 66}
-    ];
-
-    var requestedMaxAge = 538.8;
-    var requestedMinAge = 0;
-    for (var i = 0; i < eras.length; i++) {
-      // Get early era
-      if (maxAge >= eras[i].lag && maxAge <= eras[i].eag) {
-        requestedMaxAge = eras[i].eag;
-      }
-      // Get late era
-      if (minAge >= eras[i].lag && minAge <= eras[i].eag) {
-        requestedMinAge = eras[i].lag;
-      }
-    }
-    
-    if ( maxAge > 538.8 ) requestedMaxAge = "538.8";
+    // Fit the requested intervals to the data, not whole eras
+    var domain = ageDomain(data),
+        requestedMaxAge = domain.max,
+        requestedMinAge = domain.min;
     
     // Request timescale data
     $.ajax(paleo_nav.dataUrl + paleo_nav.dataService + "/intervals/list.json?scale=1&order=age.desc&max_ma=" + requestedMaxAge + "&min_ma=" + requestedMinAge )
@@ -86,15 +79,17 @@ var diversityPlot = (function() {
     // Remove any old ones...
     d3.select("#diversity","#advdiversity").select("svg").remove();
 
+    var domain = ageDomain(data);
+
     // Filter out the periods and eras for drawing purposes
     var periods = timescale.filter(function(d) {
-      if ( d.itp == 'period' ) {
+      if ( d.itp == 'period' && d.eag > domain.min && d.lag < domain.max ) {
         return d;
       }
     });
 
     var eras = timescale.filter(function(d) {
-      if ( d.itp == 'era' ) {
+      if ( d.itp == 'era' && d.eag > domain.min && d.lag < domain.max ) {
         return d;
       }
     });
@@ -125,30 +120,31 @@ var diversityPlot = (function() {
       var extinction = $('[name="extant"]').is(":checked");
     };
 
-    // Define a scale for the x axis
+    // Define a scale for the x axis — fit to the data range
     var x = d3.scale.linear()
-      .domain([d3.max(eras, function(d) { return d.eag; }), d3.min(eras, function(d) { return d.lag; }) - 1])
-      .range([0, width - margin.left - margin.right]);
+      .domain([domain.max, domain.min])
+      .range([0, plotWidth]);
 
     // Define a scale for the y axis
     if(full) {
       var y = d3.scale.linear()
-        .domain([0, d3.max(data, function(d) { return d.rangethroughYes; })])
-        .range([height - margin.top - margin.bottom, 0]);
+        .domain([0, d3.max(data, function(d) { return d.rangethroughYes; }) * 1.05])
+        .range([plotHeight, 0]);
       var y2 = d3.scale.linear()  
         .domain([-1,1])
-        .range([height - margin.top - margin.bottom, 0]);
+        .range([plotHeight, 0]);
     } else {
       var y = d3.scale.linear()
-        .domain([0, d3.max(data, function(d) { return d.total; })])
-        .range([height - margin.top - margin.bottom, 0]);
+        .domain([0, d3.max(data, function(d) { return d.total; }) * 1.05])
+        .range([plotHeight, 0]);
     }
 
     // Create an x axis
     var xAxis = d3.svg.axis()
       .scale(x)
       .orient("bottom")
-      .ticks(5);
+      .tickSize(0)
+      .ticks(6);
 
     // Create a Y axis
     var yAxis = d3.svg.axis()
@@ -164,15 +160,20 @@ var diversityPlot = (function() {
         .tickFormat(Math.abs);      
     }
 
-    // Define a scale for scaling the periods
-    var periodX = d3.scale.linear()
-      .domain([0, d3.sum(timescale, function(d) { if (d.lvl === 2 || d.itp == 'era') { return d.totalTime; } })])
-      .range([0, width - margin.left - margin.right]);
-
-    // Define a scale for positioning the periods
+    // Position intervals on the same domain as the data
     var periodPos = d3.scale.linear()
-      .domain([d3.max(timescale, function(d) { return d.eag }), d3.min(timescale, function(d) { return d.lag })])
-      .range([0, width - margin.left - margin.right]);
+      .domain([domain.max, domain.min])
+      .range([0, plotWidth]);
+
+    function intervalX(d) {
+      return periodPos(Math.min(d.eag, domain.max));
+    }
+
+    function intervalWidth(d) {
+      var left = Math.min(d.eag, domain.max),
+          right = Math.max(d.lag, domain.min);
+      return Math.max(0, periodPos(right) - periodPos(left));
+    }
 
     // Draw the SVG to hold everything
     var svg = d3.select(divname).append("svg")
@@ -185,21 +186,21 @@ var diversityPlot = (function() {
       .style("font-family", "Helvetica,sans-serif")
       .style("fill", "#333")
       .style("font-weight","100")
-      .style("font-size","0.8em");
+      .style("font-size","11px");
 
     // Draw a group to hold the timescale
     var scale = d3.select(divname + "Graph").select("g")
       .append("g")
       .attr("id", "timeScale")
-      .attr("transform", "translate(" + padding.left + "," + (height  - margin.top - margin.bottom + 3) + ")");
+      .attr("transform", "translate(" + padding.left + "," + (plotHeight + 2) + ")");
 
     // Draw the periods
     scale.selectAll(".periods")
       .data(periods)
       .enter().append("rect")
-      .attr("height", "40")
-      .attr("width", function(d) { return periodX(d.totalTime); })
-      .attr("x", function(d) { return periodPos(d.eag) })
+      .attr("height", "16")
+      .attr("width", intervalWidth)
+      .attr("x", intervalX)
       .attr("id", function(d) { return "r" + d.oid.replace("int:","") })
       .style("fill", function(d) { return d.col })
       .style("opacity", 0.83)
@@ -210,22 +211,21 @@ var diversityPlot = (function() {
     scale.selectAll(".periodNames")
       .data(periods)
       .enter().append("text")
-      .attr("x", function(d) { return (periodPos(d.eag) + periodPos(d.lag))/2 })
-      .attr("y", "30")
+      .attr("x", function(d) { return intervalX(d) + intervalWidth(d) / 2 })
+      .attr("y", "11")
       .attr("id", function(d) { return "l" + d.oid.replace("int:","") })
       .attr("class", "timeLabel abbreviation")
-      .style("font-size","2.4em")
+      .style("font-size","9px")
       .text(function(d) { return d.abr });
 
     // Draw the full period names
     scale.selectAll(".periodNames")
       .data(periods)
       .enter().append("text")
-      .attr("x", function(d) { return (periodPos(d.eag) + periodPos(d.lag))/2 })
-      .attr("y", "30")
+      .attr("x", function(d) { return intervalX(d) + intervalWidth(d) / 2 })
+      .attr("y", "11")
       .attr("class", "timeLabel dFullName")
-      .style("font-size","2.4em")
-      // .attr("style", "font-size:2.4em;font-weight: 100;color:black;")
+      .style("font-size","9px")
       .attr("id", function(d) { return "l" + d.oid.replace("int:","") })
       .text(function(d) { return d.nam });
 
@@ -233,10 +233,10 @@ var diversityPlot = (function() {
     scale.selectAll(".eras")
       .data(eras)
       .enter().append("rect")
-      .attr("height", "40")
-      .attr("width", function(d) { return periodX(d.totalTime); })
-      .attr("x", function(d) { return periodPos(d.eag) })
-      .attr("y", "40")
+      .attr("height", "16")
+      .attr("width", intervalWidth)
+      .attr("x", intervalX)
+      .attr("y", "16")
       .attr("id", function(d) { return "r" + d.oid.replace("int:","") })
       .style("fill", function(d) { return d.col })
       .style("opacity", 0.83)
@@ -247,93 +247,130 @@ var diversityPlot = (function() {
     scale.selectAll(".eraNames")
       .data(eras)
       .enter().append("text")
-      .attr("x", function(d) { return (periodPos(d.eag) + periodPos(d.lag))/2 })
-      .attr("y", "70")
+      .attr("x", function(d) { return intervalX(d) + intervalWidth(d) / 2 })
+      .attr("y", "27")
       .attr("class", "timeLabel dFullName")
-      .style("font-size","2.4em")
+      .style("font-size","9px")
       .attr("id", function(d) { return "l" + d.oid.replace("int:","") })
       .text(function(d) { return d.nam; });
 
-    // Append the x axis ticks and numbers
-    svg.append("g")
+    // Append the x axis along the bottom of the plot (matches y-axis styling)
+    var xAxisGroup = svg.append("g")
       .attr("class", "x axis")
-      .attr("transform", "translate(" + padding.left + "," + (height - margin.top - margin.bottom + 85) + ")")
-      .style("font-size","3em")
-      .style("fill","#777")
-      .call(xAxis)
-      .select("path")
-      .style("display","none");
+      .attr("transform", "translate(" + padding.left + "," + plotHeight + ")")
+      .style("font-size","11px")
+      .call(xAxis);
+
+    xAxisGroup.select("path.domain")
+      .style("fill", "none")
+      .style("stroke", "#777")
+      .style("stroke-width", "1px")
+      .style("display", "block");
+
+    xAxisGroup.selectAll("line")
+      .style("stroke", "#777");
+
+    // Keep age labels below the timescale strip
+    xAxisGroup.selectAll("text")
+      .attr("y", 48)
+      .style("fill", "#777");
 
     // Append the y axis
     var label = svg.append("g")
       .attr("class", "y axis")
       .attr("transform", "translate(" + padding.left + ",0)")
-      .style("fill","none")
-      .style("font-size","3em")
+      .style("font-size","11px")
       .style("letter-spacing","normal")
       .call(yAxis);
 
+    // Keep a visible vertical axis line
+    label.select("path.domain")
+      .style("fill", "none")
+      .style("stroke", "#777")
+      .style("stroke-width", "1px")
+      .style("display", "block");
+
+    label.selectAll("line")
+      .style("stroke", "#777");
+
+    // Axis title sits left of the tick numbers (after rotate, y is horizontal offset)
     label.append("text")
       .attr("transform", "rotate(-90)")
-      .attr("dy", "1em")
+      .attr("y", -62)
+      .attr("x", -plotHeight / 2)
+      .attr("dy", "0")
       .style("fill","#777")
-      .style("text-anchor", "end")
-      .style("font-size", "0.8em")
+      .style("text-anchor", "middle")
+      .style("font-size", "12px")
       .style("font-weight", 400)
       .text($("[name=taxonLevel]").val() + " sampled in " + $("[name=timeLevel]").val());
 
     label.append("text")
       .attr("transform", "rotate(-90)")
-      .attr("dy", "3em")
-      .style("text-anchor", "end")
-      .style("font-size", "0.6em")
+      .attr("y", -48)
+      .attr("x", -plotHeight / 2)
+      .style("text-anchor", "middle")
+      .style("font-size", "10px")
       .style("font-weight", 300)
-      .style("font-style", "italics")
+      .style("font-style", "italic")
       .style("fill","#777")
       .text("(approximate)");
 
-    label.selectAll(".tick")
-      .style("letter-spacing","8px")
+    label.selectAll(".tick text")
+      .style("letter-spacing","normal")
       .style("fill","#777");
 
     if(full){ //append the second y-axis
       var label2 = svg.append("g")
         .attr("class", "y axis")
-        .attr("transform", "translate(" + (width - 20) + ",0)")
-        .style("fill","none")
-        .style("font-size","3em")
+        .attr("transform", "translate(" + plotWidth + ",0)")
+        .style("font-size","11px")
         .style("letter-spacing","normal")
         .call(yAxis2);
 
+      label2.select("path.domain")
+        .style("fill", "none")
+        .style("stroke", "#777")
+        .style("stroke-width", "1px");
+
+      label2.selectAll("line")
+        .style("stroke", "#777");
+
       label2.append("text")
-        .attr("transform", "rotate(90)translate(" + (height * 0.28) + ",-35)")
+        .attr("transform", "rotate(90)")
+        .attr("y", -36)
+        .attr("x", plotHeight * 0.28)
         .attr("dy", "1em")
         .style("fill","green")
-        .style("text-anchor", "end")
-        .style("font-size", "0.6em")
+        .style("text-anchor", "middle")
+        .style("font-size", "11px")
         .style("font-weight", 400)
         .text("origination");
 
       label2.append("text")
-        .attr("transform", "rotate(90)translate(" + (height * 0.70) + ",-35)")
+        .attr("transform", "rotate(90)")
+        .attr("y", -36)
+        .attr("x", plotHeight * 0.72)
         .attr("dy", "1em")
         .style("fill","red")
-        .style("text-anchor", "end")
-        .style("font-size", "0.6em")
+        .style("text-anchor", "middle")
+        .style("font-size", "11px")
         .style("font-weight", 400)
         .text("extinction");
 
       label2.append("text")
-        .attr("transform", "rotate(90)translate(" + (height * 0.65) + ",-80)")
+        .attr("transform", "rotate(90)")
+        .attr("y", -52)
+        .attr("x", plotHeight / 2)
         .attr("dy", "1em")
         .style("fill","#777")
-        .style("text-anchor", "end")
-        .style("font-size", "0.8em")
+        .style("text-anchor", "middle")
+        .style("font-size", "12px")
         .style("font-weight", 400)
         .text("rates per " + $("[name=taxonLevel]").val() + " per Myr");
 
-      label2.selectAll(".tick")
-        .style("letter-spacing","8px")
+      label2.selectAll(".tick text")
+        .style("letter-spacing","normal")
         .style("fill","#777");
     }
 
@@ -346,7 +383,7 @@ var diversityPlot = (function() {
       svg.append("path")
         .datum(data)
         .attr("class", "line diversityLine sampledLine")
-        .attr("style", "fill: none; stroke: #777; stroke-width: 4px;")
+        .attr("style", "fill: none; stroke: #555; stroke-width: 1.5px;")
         .attr("d", line)
         .attr("transform", "translate(" + padding.left + ",0)");
 
@@ -360,7 +397,7 @@ var diversityPlot = (function() {
       
         svg.append("path")
           .attr("class", "line diversityLine rangethroughLineYes")
-          .attr("style", "fill: none; stroke: black; stroke-width: 4px; stroke-dasharray: 4,2; display:none;")
+          .attr("style", "fill: none; stroke: black; stroke-width: 1.5px; stroke-dasharray: 4,2; display:none;")
           .attr("d", lineRangethroughYes(data))
           .attr("transform", "translate(" + padding.left + ",0)");
 
@@ -371,7 +408,7 @@ var diversityPlot = (function() {
       
         svg.append("path")
           .attr("class", "line diversityLine rangethroughLineNo")
-          .attr("style", "fill: none; stroke: black; stroke-width: 4px; stroke-dasharray: 4,2; display:none;")
+          .attr("style", "fill: none; stroke: black; stroke-width: 1.5px; stroke-dasharray: 4,2; display:none;")
           .attr("d", lineRangethroughNo(data))
           .attr("transform", "translate(" + padding.left + ",0)");
 
@@ -386,7 +423,7 @@ var diversityPlot = (function() {
         svg.append("path")
           .datum(data)
           .attr("class", "line diversityLine originationLine")
-          .attr("style", "fill: none; stroke: green; stroke-width: 2px; display:none;")
+          .attr("style", "fill: none; stroke: green; stroke-width: 1.5px; display:none;")
           .attr("d", lineOrigination(data))
           .attr("transform", "translate(" + padding.left + ",0)");
 
@@ -402,7 +439,7 @@ var diversityPlot = (function() {
         svg.append("path")
           .datum(data)
           .attr("class", "line diversityLine extinctionLine")
-          .attr("style", "fill: none; stroke: red; stroke-width: 2px; display:none;")
+          .attr("style", "fill: none; stroke: red; stroke-width: 1.5px; display:none;")
           .attr("d", lineExtinction(data))
           .attr("transform", "translate(" + padding.left + ",0)");
 
@@ -493,18 +530,13 @@ var diversityPlot = (function() {
       }
     }
 
-    if (full) {
-      d3.select("#" + modalPrefix + "diversityGraphGroup")
-      .attr("transform", "scale(" + scale + ")translate(" + (margin.left - 80) + "," + margin.top + ")");
-    } else {
-      d3.select("#" + modalPrefix + "diversityGraphGroup")
+    d3.select("#" + modalPrefix + "diversityGraphGroup")
       .attr("transform", "scale(" + scale + ")translate(" + margin.left + "," + margin.top + ")");
-    }
 
     var computedWidth = d3.select("#" + modalPrefix + "diversityGraphGroup").node().getBBox().width;
     d3.select("#" + modalPrefix + "diversityGraph")
-      .attr("height", containerHeight + margin.bottom)
-      .attr("width", computedWidth * scale + margin.left);
+      .attr("height", Math.max(containerHeight, height * scale) + 8)
+      .attr("width", Math.max(computedWidth * scale + margin.left * scale, width * scale));
 
     positionLabels(true);
   }
