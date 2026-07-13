@@ -47,6 +47,7 @@ var paleo_nav = (function() {
         });
         reconstructMap.init();
         taxaBrowser.init();
+        taxaTree.init();
       });
 
       // Initialize the country map

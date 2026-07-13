@@ -2162,6 +2162,8 @@ var navMap = (function () {
           navMap.filters.exist.taxon = true;
           navMap.updateFilterList("taxon", taxon.id);
 
+          taxaTree.logHierarchy(taxon.name);
+
           // Refresh either the reconstruction map or the regular one
           if (d3.select("#reconstructMap").style("display") === "block") {
             reconstructMap.rotate(navMap.filters.selectedInterval);
