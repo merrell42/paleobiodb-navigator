@@ -133,13 +133,12 @@
           </div>
           <div id="mapControls">
             <div class="customControl buttons leaflet-control">
+              <div class="rotate mapCtrl" title="Toggle paleogeography"><div id="rotateIcon"></div></div>
+              <div class="taxa mapCtrl" title="Toggle taxa browser"><i class="fa fa-bug ctrlButton"></i></div>
+              <div class="stats mapCtrl" title="Toggle stats"><a data-toggle="modal" href="#statsBox"><i class="fa fa-line-chart ctrlButton"></i></a></div>
+              <div class="save mapCtrl" title="Save map data"><a data-toggle="modal" href="#saveBox"><i class="fa fa-download ctrlButton"></i></a></div>
               <div class="zoom-in mapCtrl" title="Zoom in"><i class="fa fa-plus ctrlButton"></i></div>
               <div class="zoom-out mapCtrl" title="Zoom out"><i class="fa fa-minus ctrlButton"></i></div>
-              <div class="rotate mapCtrl" title="Toggle paleogeography"><div id="rotateIcon"></div></div>
-              <div class="taxa mapCtrl" title="Toggle taxa browser"><i class="fa fa-bug fa-2x ctrlButton"></i></div>
-              <div class="stats mapCtrl" title="Toggle stats"><a data-toggle="modal" href="#statsBox"><i class="fa fa-line-chart fa-2x ctrlButton"></i></a></div>
-              <div class="save mapCtrl" title="Save map data"><a data-toggle="modal" href="#saveBox"><i class="fa fa-download fa-2x ctrlButton"></i></a></div>
-              <div class="save mapCtrl" title="See examples"><a data-toggle="modal" href="#helpModal"><i class="fa fa-hand-o-right fa-2x ctrlButton"></i></a></div>
             </div>
           </div>
           <div id="mapContainer">
@@ -629,12 +628,6 @@
             </div>
             <div class="helpModalControls">
               <div class="helpModalControlLabel">
-                <i class="fa fa-angle-left"></i><p>Zoom in</p>
-              </div>
-              <div class="helpModalControlLabel">
-                <i class="fa fa-angle-left"></i><p>Zoom out</p>
-              </div>
-              <div class="helpModalControlLabel">
                 <i class="fa fa-angle-left"></i><p>Paleo view</p>
               </div>
               <div class="helpModalControlLabel">
@@ -647,7 +640,10 @@
                 <i class="fa fa-angle-left"></i><p>Save data</p>
               </div>
               <div class="helpModalControlLabel">
-                <i class="fa fa-angle-left"></i><p>Show examples</p>
+                <i class="fa fa-angle-left"></i><p>Zoom in</p>
+              </div>
+              <div class="helpModalControlLabel">
+                <i class="fa fa-angle-left"></i><p>Zoom out</p>
               </div>
             </div>
             <div class="helpModalControls right">

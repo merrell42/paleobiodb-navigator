@@ -28,10 +28,10 @@ var reconstructMap = (function() {
       containerHeight;
 
     if (d3.select(".timeScale").style("visibility") === "hidden") {
-      containerHeight = window.innerHeight - 36;
+      containerHeight = window.innerHeight - 40;
     } else {
       var timeHeight = ($("#time").height() > 15) ? $("#time").height() : window.innerHeight / 5.6;
-      containerHeight = window.innerHeight - timeHeight - 36;
+      containerHeight = window.innerHeight - timeHeight - 40;
     }
 
     return {

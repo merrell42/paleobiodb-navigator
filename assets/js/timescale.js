@@ -26,6 +26,17 @@ var timeScale = (function() {
       dragStart, transformStart,
       panBounds = { minX: 0, maxX: 960 };
 
+  // Fixed local layout width. The SVG group is scaled so this maps to the page width.
+  var layoutWidth = 960;
+
+  function getContainerWidth() {
+    return parseInt(d3.select("#graphics").style("width"), 10);
+  }
+
+  function getLayoutScale(containerWidth) {
+    return containerWidth / layoutWidth;
+  }
+
   /* Distinguish between clicks and doubleclicks via 
      https://gist.github.com/tmcw/4067674 */
 
@@ -82,12 +93,12 @@ var timeScale = (function() {
     }
     var early = d.early_age.toFixed(1);
     var late = d.late_age.toFixed(1);
-    return d.name + " (" + early + " - " + late + " mya)";
+    return d.name + " (" + early + " - " + late + " Ma)";
   }
 
   function init(div, height, callbackFunc) {
-    var width = 960,
-        x = d3.scale.linear().range([0, width - 5]),
+    var width = layoutWidth,
+        x = d3.scale.linear().range([0, width]),
         y = d3.scale.linear().range([0, height]),
         newX = 0.01;
 
@@ -106,11 +117,11 @@ var timeScale = (function() {
         var currentDrag = [d3.event.sourceEvent.pageX, d3.event.sourceEvent.pageY];
         newX = (dragStart[0] - currentDrag[0]);
 
-        var scale = parseInt(d3.select(".timeScale").style("width")) / 961;
-        var viewWidth = parseInt(d3.select(".timeScale").style("width"));
+        var containerWidth = getContainerWidth();
+        var scale = getLayoutScale(containerWidth);
         // transform is translate(T)scale(S): screen = S * local + T
         var maxTranslate = -panBounds.minX * scale;
-        var minTranslate = viewWidth - panBounds.maxX * scale;
+        var minTranslate = containerWidth - panBounds.maxX * scale;
         var proposed = transformStart[0] + -newX;
         if (minTranslate > maxTranslate) {
           proposed = (minTranslate + maxTranslate) / 2;
@@ -348,8 +359,7 @@ var timeScale = (function() {
   function labelY(d) {
     var rectHeight = parseFloat(d3.select("rect#t" + d.id).attr("height")), 
         rectY = parseFloat(d3.select("rect#t" + d.id).attr("y")),
-        labelHeight = d3.select("#l" + d.id).node().getBBox().height,
-        scale = parseInt(d3.select(".timeScale").style("width"))/961;
+        labelHeight = d3.select("#l" + d.id).node().getBBox().height;
 
     return (rectY * 0.8) + ((rectHeight - labelHeight) / 2) + 8;
   }
@@ -357,8 +367,7 @@ var timeScale = (function() {
   function labelAbbrY(d) {
     var rectHeight = parseFloat(d3.select("rect#t" + d.id).attr("height")), 
         rectY = parseFloat(d3.select("rect#t" + d.id).attr("y")),
-        labelHeight = d3.select("#l" + d.id).node().getBBox().height,
-        scale = parseInt(d3.select(".timeScale").style("width"))/961;
+        labelHeight = d3.select("#l" + d.id).node().getBBox().height;
 
     return (rectY * 0.8) + (rectHeight - labelHeight) / 2;
   }
@@ -412,15 +421,13 @@ var timeScale = (function() {
     // Stores the currently focused time interval for state restoration purposes
     timeScale.currentInterval = d;
 
-    // Reset panning  
+    // Reset panning — scale only; keep local layout at layoutWidth
     d3.select(".timeScale g")
-      .attr("transform", function() {
-        return "scale(" + parseInt(d3.select(".timeScale").style("width"))/961 + ")";
-      });
+      .attr("transform", "scale(" + getLayoutScale(getContainerWidth()) + ")");
 
     // var n keeps track of the transition
     var n = 0,
-        x = d3.scale.linear().range([5, 955]);
+        x = d3.scale.linear().range([0, layoutWidth]);
 
     x.domain([d.x, d.x + d.dx]);
 
@@ -469,7 +476,7 @@ var timeScale = (function() {
 
     // var n keeps track of the transition
     var n = 0,
-        x = d3.scale.linear().range([0, 955]),
+        x = d3.scale.linear().range([0, layoutWidth]),
         y = d3.scale.linear().range([0, 120]);
 
     x.domain([d.x, d.x + d.dx]);
@@ -546,34 +553,18 @@ var timeScale = (function() {
   }
 
   function resize() {
-    d3.select(".timeScale g")
-      .attr("transform", function() {
-        var width = parseInt(d3.select("#graphics").style("width"));
-        return "scale(" + width/961 + ")";
-      });
-
+    var containerWidth = getContainerWidth();
+    var scale = getLayoutScale(containerWidth);
     var g = d3.select(".timeScale").select("svg");
-    
-    // Firefox hack for figuring out the correct size and positioning
-    var box;
-    try {
-      box = g.node().getBBox()
-    } catch(err) {
-      box = {
-        x: g.node().clientLeft,
-        y: g.node().clientTop,
-        width: g.node().clientWidth,
-        height: g.node().clientHeight
-      }
-    }
-    d3.select(".timeScale svg")
-      .style("width", function() {
-        return (parseInt(d3.select("#graphics").style("width")) - 1) + "px";
-       });
-    d3.select(".timeScale svg")
-      .style("height", function() {
-        return (box.height + 5) + "px";
-      });
+    var localHeight = parseFloat(g.attr("height"), 10);
+
+    d3.select(".timeScale g")
+      .attr("transform", "scale(" + scale + ")");
+
+    // Size from the fixed local layout, not getBBox — off-screen zoomed-out
+    // intervals would otherwise inflate the measured box and the page height.
+    g.style("width", containerWidth + "px")
+      .style("height", Math.ceil(localHeight * scale) + "px");
   }
 
   return {

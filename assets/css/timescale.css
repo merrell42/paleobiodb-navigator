@@ -4,6 +4,12 @@
   font-size: 0.8em;
   color:#333;
   cursor: default;
+  width: 100%;
+  overflow: hidden;
+}
+.timeScale svg {
+  display: block;
+  overflow: hidden;
 }
 .timeScale .fullName,
 .timeScale .abbr {
