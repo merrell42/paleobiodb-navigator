@@ -968,16 +968,11 @@ var navMap = (function () {
         timeScale.highlight(this);
       })
       .on("click", function (d) {
-        if (level >= 3) {
-          d3.select(".info")
-            .html("<strong>" + d.nco + " collections</strong><br>" + d.noc + " occurrences")
-            .style("display", "block");
-          timeScale.highlight(this);
-          navMap.openBinModal(d);
-        } else {
-          navMap.focusOnPoint(d.lat, d.lng, 5);
-          scheduleSvgRefresh();
-        }
+        d3.select(".info")
+          .html("<strong>" + d.nco + " collections</strong><br>" + d.noc + " occurrences")
+          .style("display", "block");
+        timeScale.highlight(this);
+        navMap.openBinModal(d);
       });
 
     bins.exit().remove();
@@ -1061,15 +1056,11 @@ var navMap = (function () {
         timeScale.highlight(this);
       })
       .on("click", function (d) {
-        if (level === 2) {
-          d3.select(".info")
-            .html("<strong>" + d.nco + " collections</strong><br>" + d.noc + " occurrences")
-            .style("display", "block");
-          timeScale.highlight(this);
-          navMap.openBinModal(d);
-        } else if (level === 1) {
-          map.setView([d.lat, d.lng], 5);
-        }
+        d3.select(".info")
+          .html("<strong>" + d.nco + " collections</strong><br>" + d.noc + " occurrences")
+          .style("display", "block");
+        timeScale.highlight(this);
+        navMap.openBinModal(d);
       });
 
     points.enter().append("circle")
@@ -1083,15 +1074,11 @@ var navMap = (function () {
         timeScale.highlight(this);
       })
       .on("click", function (d) {
-        if (level === 2) {
-          d3.select(".info")
-            .html("<strong>" + d.nco + " collections</strong><br>" + d.noc + " occurrences")
-            .style("display", "block");
-          timeScale.highlight(this);
-          navMap.openBinModal(d);
-        } else if (level === 1) {
-          map.setView([d.lat, d.lng], 5);
-        }
+        d3.select(".info")
+          .html("<strong>" + d.nco + " collections</strong><br>" + d.noc + " occurrences")
+          .style("display", "block");
+        timeScale.highlight(this);
+        navMap.openBinModal(d);
       })
       .on("mouseout", function () {
         navMap.setInfoSummary();
