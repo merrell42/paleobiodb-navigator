@@ -10,6 +10,7 @@
 .timeScale svg {
   display: block;
   overflow: hidden;
+  margin-bottom: 4px;
 }
 .timeScale .fullName,
 .timeScale .abbr {

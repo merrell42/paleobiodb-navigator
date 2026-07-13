@@ -192,7 +192,7 @@ var diversityPlot = (function() {
     var scale = d3.select(divname + "Graph").select("g")
       .append("g")
       .attr("id", "timeScale")
-      .attr("transform", "translate(" + padding.left + "," + (plotHeight + 2) + ")");
+      .attr("transform", "translate(" + padding.left + "," + (plotHeight + 4) + ")");
 
     // Draw the periods
     scale.selectAll(".periods")
