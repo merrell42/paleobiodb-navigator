@@ -696,7 +696,8 @@ var paleo_nav = (function() {
         });
 
         toDisplay.forEach(function(d) {
-          d.display_text = d.display_name + ((d.display_name.length > 17) ? "" : (" " + d.percentage + "%"));
+          var commonName = taxaTree.getCommonName(d.display_name.replace("*", ""));
+          d.display_text = d.display_name + (commonName ? " (" + commonName + ")" : "") + ((d.display_name.length > 17) ? "" : (" " + d.percentage + "%"));
         });
 
         var summaryRendered = Mustache.render(prevalenceSummaryPartial, {"records": toDisplay});
