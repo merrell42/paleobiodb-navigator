@@ -13,6 +13,42 @@
 var taxaTree = (function () {
   var tree = null;
   var loading = null;
+  var commonNameIndex = [];
+
+  function buildCommonNameIndex(data) {
+    commonNameIndex = [];
+    Object.keys(data).forEach(function (nam) {
+      var common = data[nam][2];
+      if (common) {
+        commonNameIndex.push({
+          nam: nam,
+          common: common,
+          key: common.toLowerCase()
+        });
+      }
+    });
+  }
+
+  function searchByCommonName(query, limit) {
+    if (!query || query.length < 3) {
+      return [];
+    }
+
+    limit = limit || 10;
+    var q = query.toLowerCase();
+    var results = [];
+
+    commonNameIndex.forEach(function (entry) {
+      if (entry.key.indexOf(q) === 0) {
+        results.push({
+          nam: entry.nam,
+          common: entry.common
+        });
+      }
+    });
+
+    return results.slice(0, limit);
+  }
 
   function load() {
     if (tree) {
@@ -29,6 +65,7 @@ var taxaTree = (function () {
           return reject(err);
         }
         tree = data;
+        buildCommonNameIndex(data);
         resolve(tree);
       });
     });
@@ -139,6 +176,7 @@ var taxaTree = (function () {
     getChildren: getChildren,
     getCommonName: getCommonName,
     getTotalOccurrences: getTotalOccurrences,
+    searchByCommonName: searchByCommonName,
     getAncestors: getAncestors,
     logHierarchy: logHierarchy
   };

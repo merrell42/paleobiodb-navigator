@@ -17,18 +17,9 @@ var taxaBrowser = (function(){
       var name = $("#taxonInput").val();
     }
 
-    var selector;
-      
-    if (name.match(/^txn:|^var:/)) {
-      selector = "id=" + name;
-    } else {
-      selector = "name=" + name;
-    }
-
     // If there is a taxon to search for...
     if (name.length > 0) {
-      // Ask the API for the taxon oid
-      d3.json(paleo_nav.dataUrl + paleo_nav.dataService + '/taxa/list.json?status=all&' + selector, function(err, data) {
+      lookupTaxon(name, "status=all&", false, function(err, data) {
         if (err) {
           alert("Error retrieving from list.json - ", err);
           paleo_nav.hideLoading();
@@ -60,6 +51,24 @@ var taxaBrowser = (function(){
         }
       });
     }
+  }
+
+  function lookupTaxon(name, extraParams, showSeq, callback) {
+    var show = showSeq ? "&show=seq" : "";
+    var url = paleo_nav.dataUrl + paleo_nav.dataService + "/taxa/list.json?" + (extraParams || "");
+
+    if (name.match(/^txn:|^var:/)) {
+      d3.json(url + "id=" + name + show, callback);
+      return;
+    }
+
+    d3.json(url + "name=" + encodeURIComponent(name) + show, function(err, data) {
+      if (!err && data.records && data.records.length > 0) {
+        callback(err, data);
+        return;
+      }
+      d3.json(url + "taxon_name=" + encodeURIComponent(name) + "&common=EN" + show, callback);
+    });
   }
 
   function getTaxonDetails(taxon) {
@@ -357,6 +366,7 @@ var taxaBrowser = (function(){
   return {
     "init": init,
     "goToTaxon": goToTaxon,
+    "lookupTaxon": lookupTaxon,
     "rankMap": rankMap,
     "filter": filter
   }

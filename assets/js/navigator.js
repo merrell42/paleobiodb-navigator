@@ -141,7 +141,7 @@ var paleo_nav = (function() {
         }
       });
 
-      var taxaTemplate = Mustache.compile('<p>{{nam}}{{#msp}}<small class="misspelling">  missp.</small>{{/msp}}      <small class="taxaRank">{{rank}}</small></p>');
+      var taxaTemplate = Mustache.compile('<p>{{nam}}{{#common}} <small class="taxaRank">({{common}})</small>{{/common}}{{^common}}{{#rank}} <small class="taxaRank">{{rank}}</small>{{/rank}}{{/common}}{{#msp}}<small class="misspelling">  missp.</small>{{/msp}}</p>');
 
       var taxaAutocomplete = $("#taxonInput").typeahead({
         name: 'taxaBrowser',
@@ -151,7 +151,20 @@ var paleo_nav = (function() {
             data.records.forEach(function(d) {
               d.rank = taxaBrowser.rankMap(d.rnk);
             });
-            return data.records;
+            var records = data.records;
+            var query = $("#taxonInput").val();
+            if (taxaTree.searchByCommonName) {
+              taxaTree.searchByCommonName(query, 10).forEach(function(match) {
+                var exists = records.some(function(r) { return r.nam === match.nam; });
+                if (!exists) {
+                  records.push({
+                    nam: match.nam,
+                    common: match.common
+                  });
+                }
+              });
+            }
+            return records;
           }
         },
         valueKey: 'nam',
@@ -182,6 +195,144 @@ var paleo_nav = (function() {
         "group": "Gp"
       };
 
+      function renderUniversalAutocomplete(combinedResult, commonTaxa, localTaxa, autocompleteInput) {
+        var htmlResult = "";
+        var result = combinedResult || { records: [] };
+
+        if (!result.records) {
+          result.records = [];
+        }
+
+        var txnNames = {};
+        result.records.forEach(function(d) {
+          if (d.oid && d.oid.substr(0, 3) === "txn") {
+            txnNames[d.nam] = true;
+          }
+        });
+
+        commonTaxa.forEach(function(d) {
+          if (!txnNames[d.nam]) {
+            result.records.push({
+              oid: d.oid,
+              nam: d.nam,
+              rnk: taxaBrowser.rankMap(d.rnk),
+              commonLabel: autocompleteInput
+            });
+            txnNames[d.nam] = true;
+          }
+        });
+
+        localTaxa.forEach(function(d) {
+          if (!txnNames[d.nam]) {
+            result.records.push({
+              oid: "txn:",
+              nam: d.nam,
+              rnk: "",
+              commonLabel: d.common
+            });
+            txnNames[d.nam] = true;
+          }
+        });
+
+        if (result.records.length === 0) {
+          htmlResult += "<div class='autocompleteError'>No matching results for \"" + autocompleteInput + "\"</div>";
+        } else {
+          var currentType = "";
+          result.records.map(function(d) {
+            var rtype = d.oid.substr(0, 3);
+            switch (rtype) {
+              case "int":
+                if ( currentType != "int" ) { htmlResult += "<h4 class='autocompleteTitle'>Time Intervals</h4>"; currentType = "int"; }
+                htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-rtype='" + rtype + "'>"
+                htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>" + Math.round(d.eag) + "-" + Math.round(d.lag) + " ma</small></p></div>";
+                break;
+              case "str":
+                if ( currentType != "str" ) { htmlResult += "<h4 class='autocompleteTitle'>Stratigraphic Units</h4>"; currentType = "str"; }
+                htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-rnk='" + d.rnk + "' data-rtype='" + rtype + "'>"
+                htmlResult += "<p class='tt-suggestion'>" + d.nam + " " + d.rnk + " <small class=taxaRank>in " + d.cc2 + "</small></p></div>";
+                break;
+              case "prs":
+                if ( currentType != "prs" ) { htmlResult += "<h4 class='autocompleteTitle'>Authorizers</h4>"; currentType = "prs"; }
+                htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-oid='" + d.oid + "' data-rtype='" + rtype + "'>"
+                htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>" + d.ist + "</small></p></div>"
+                break;
+              case "txn":
+                if ( currentType != "txn" ) {
+                  htmlResult += "<h4 class='autocompleteTitle'>Taxa</h4>";
+                  currentType = "txn";
+                }
+                if (d.commonLabel && d.oid === "txn:") {
+                  htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-rtype='" + rtype + "'>";
+                } else {
+                  htmlResult += "<div class='suggestion' data-oid='" + d.oid + "' data-nam='" + d.nam + "' data-rtype='" + rtype + "'>";
+                }
+                if (d.tdf) {
+                  htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>" + d.rnk + " in " + d.htn + "</small><br><small class=misspelling>" + d.tdf + " " + d.acn + "</small></p></div>";
+                } else if (d.commonLabel) {
+                  htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>(" + d.commonLabel + ")</small></p></div>";
+                } else {
+                  htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>" + d.rnk + " in " + d.htn + "</small></p></div>";
+                }
+                break;
+              case "cou":
+                if ( currentType != "cou" ) {
+                  htmlResult += "<h4 class='autocompleteTitle'>Geographic Regions</h4>";
+                  currentType = "cou";
+                }
+                htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-cc2='" + d.cc2 + "' data-rtype='cou'>";
+                htmlResult += "<p class='tt-suggestion'>" + d.nam + "</p></div>";
+                break;
+              case "rgp":
+                if ( currentType != "rgp" ) {
+                  htmlResult += "<h4 class='autocompleteTitle'>Research Groups</h4>";
+                  currentType = "rgp";
+                }
+                htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-rtype='rgp'>";
+                htmlResult += "<p class='tt-suggestion'>Only " + d.nam + "</p></div>";
+                htmlResult += "<div class='suggestion' data-nam='!" + d.nam + "' data-rtype='rgp'>";
+                htmlResult += "<p class='tt-suggestion'>Exclude " + d.nam + "</p></div>";
+                break;
+              default: //do nothing
+            }
+          });
+        }
+
+        $("#universalSearchResult").html(htmlResult);
+        $("#universalSearchResult").css("display","block");
+        $(".suggestion").on("click", function(event) {
+          event.preventDefault();
+          $("#universalSearchResult").css("display","none");
+          var rtype = $(this).attr("data-rtype");
+          switch (rtype) {
+            case "int":
+              timeScale.goTo($(this).attr("data-nam"));
+              navMap.filterByTime($(this).attr("data-nam"));
+              navMap.refresh("reset");
+              break;
+            case "str":
+              var rock = {"nam": $(this).attr("data-nam"), "type": $(this).attr("data-rnk")}
+              navMap.filterByStratigraphy(rock);
+              break;
+            case "prs":
+              var person = {"id": $(this).attr("data-oid") ,"nam": $(this).attr("data-nam")}
+              navMap.filterByPerson(person);
+              document.activeElement.blur();
+              break;
+            case "txn":
+              navMap.filterByTaxon($(this).attr("data-oid") || $(this).attr("data-nam"));
+              break;
+            case "rgp":
+              navMap.filterByResearchGroup($(this).attr("data-nam"));
+              break;
+            case "cou":
+              navMap.filterByCountry($(this).attr("data-nam"), $(this).attr("data-cc2"));
+              break;
+            default: //do nothing
+          }
+          $("#universalAutocompleteInput").val("");
+        });
+      }
+
       // new "combined/auto"-based universal autocomplete code
       var universalAutocomplete = $("#universalAutocompleteInput").on('keyup', function(event) {
         var autocompleteInput = $("#universalAutocompleteInput").val();
@@ -190,98 +341,26 @@ var paleo_nav = (function() {
           $("#universalSearchResult").css("display","none");
           return;
         }
-          d3.json(dataUrl + dataService + '/combined/auto.json?type=nav&name=' +
-				  encodeURIComponent(autocompleteInput), function(error,result){
-          var htmlResult = "";
-          if (error) {htmlResult += "<div class='autocompleteError'>Error: server did not respond</div>"} //server is down or something
-          else if (result.records.length == 0) {htmlResult += "<div class='autocompleteError'>No matching results for \"" + autocompleteInput + "\"</div>"} //no matches
-          else {
-            var currentType = "";
-            result.records.map(function(d){
-              var rtype = d.oid.substr(0,3);
-              switch (rtype) {
-                case "int": 
-                  if ( currentType != "int" ) { htmlResult += "<h4 class='autocompleteTitle'>Time Intervals</h4>"; currentType = "int"; }
-                  htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-rtype='" + rtype + "'>"
-                  htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>" + Math.round(d.eag) + "-" + Math.round(d.lag) + " ma</small></p></div>";
-                  break;
-                case "str": 
-                  if ( currentType != "str" ) { htmlResult += "<h4 class='autocompleteTitle'>Stratigraphic Units</h4>"; currentType = "str"; }
-                  htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-rnk='" + d.rnk + "' data-rtype='" + rtype + "'>"
-                  htmlResult += "<p class='tt-suggestion'>" + d.nam + " " + d.rnk + " <small class=taxaRank>in " + d.cc2 + "</small></p></div>";
-                  break;
-                case "prs": 
-                  if ( currentType != "prs" ) { htmlResult += "<h4 class='autocompleteTitle'>Authorizers</h4>"; currentType = "prs"; }
-                  htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-oid='" + d.oid + "' data-rtype='" + rtype + "'>"
-                  htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>" + d.ist + "</small></p></div>"
-                  break;
-                case "txn": 
-                  if ( currentType != "txn" ) { 
-		    htmlResult += "<h4 class='autocompleteTitle'>Taxa</h4>"; 
-		    currentType = "txn";
-		  }
-                  htmlResult += "<div class='suggestion' data-oid='" + d.oid + "' data-rtype='" + rtype + "'>"
-                  if (d.tdf) { htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>" + d.rnk + " in " + d.htn + "</small><br><small class=misspelling>" + d.tdf + " " + d.acn + "</small></p></div>"; }
-                  else { htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>" + d.rnk + " in " + d.htn + "</small></p></div>"; }
-                  break;
-                case "cou":
-                  if ( currentType != "cou" ) {
-                    htmlResult += "<h4 class='autocompleteTitle'>Geographic Regions</h4>";
-                    currentType = "cou";
-                  }
-                  htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-cc2='" + d.cc2 + "' data-rtype='cou'>";
-                  htmlResult += "<p class='tt-suggestion'>" + d.nam + "</p></div>";
-                  break;
-	        case "rgp":
-		  if ( currentType != "rgp" ) {
-		    htmlResult += "<h4 class='autocompleteTitle'>Research Groups</h4>";
-		    currentType = "rgp";
-		  }
-		  htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-rtype='rgp'>";
-		  htmlResult += "<p class='tt-suggestion'>Only " + d.nam + "</p></div>";
-		  htmlResult += "<div class='suggestion' data-nam='!" + d.nam + "' data-rtype='rgp'>";
-		  htmlResult += "<p class='tt-suggestion'>Exclude " + d.nam + "</p></div>";
-		  break;
-                default: //do nothing 
-                }
-              })
+        d3.json(dataUrl + dataService + '/combined/auto.json?type=nav&name=' +
+          encodeURIComponent(autocompleteInput), function(error, result) {
+          if (error) {
+            result = { records: [] };
           }
-          $("#universalSearchResult").html(htmlResult);
-          $("#universalSearchResult").css("display","block");
-          $(".suggestion").on("click", function(event) {
-            event.preventDefault();
-            $("#universalSearchResult").css("display","none");
-            var rtype = $(this).attr("data-rtype");
-            switch (rtype) {
-              case "int": 
-                timeScale.goTo($(this).attr("data-nam"));
-                navMap.filterByTime($(this).attr("data-nam"));
-                navMap.refresh("reset");
-                break;
-              case "str": 
-                var rock = {"nam": $(this).attr("data-nam"), "type": $(this).attr("data-rnk")}
-                navMap.filterByStratigraphy(rock);
-                break;
-              case "prs": 
-                var person = {"id": $(this).attr("data-oid") ,"nam": $(this).attr("data-nam")}
-                navMap.filterByPerson(person);
-                document.activeElement.blur();
-                break;
-              case "txn": 
-                navMap.filterByTaxon($(this).attr("data-oid"));
-                break;
-	      case "rgp":
-                navMap.filterByResearchGroup($(this).attr("data-nam"));
-                break;
-              case "cou":
-                navMap.filterByCountry($(this).attr("data-nam"), $(this).attr("data-cc2"));
-                break;
-              default: //do nothing           
-            }
-            $("#universalAutocompleteInput").val("");
-          }); 
-          return;
-        })
+          d3.json(dataUrl + dataService + '/taxa/list.json?taxon_name=' +
+            encodeURIComponent(autocompleteInput) + '&common=EN&limit=5', function(err2, commonData) {
+            var commonTaxa = (commonData && commonData.records) ? commonData.records : [];
+            taxaTree.load().then(function() {
+              renderUniversalAutocomplete(
+                result,
+                commonTaxa,
+                taxaTree.searchByCommonName(autocompleteInput, 5),
+                autocompleteInput
+              );
+            }).catch(function() {
+              renderUniversalAutocomplete(result, commonTaxa, [], autocompleteInput);
+            });
+          });
+        });
       });
 
 

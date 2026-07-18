@@ -2109,15 +2109,7 @@ var navMap = (function () {
       var name = $("#taxonInput").val();
     }
 
-    var selector;
-
-    if (name.match(/^txn:|^var:/)) {
-      selector = "id=" + name;
-    } else {
-      selector = "name=" + name;
-    }
-
-    d3.json(paleo_nav.dataUrl + paleo_nav.dataService + '/taxa/list.json?' + selector + '&show=seq', function (err, data) {
+    taxaBrowser.lookupTaxon(name, "", true, function (err, data) {
       if (err) {
         alert("Error retrieving from list.json - ", err);
         return paleo_nav.hideLoading();
