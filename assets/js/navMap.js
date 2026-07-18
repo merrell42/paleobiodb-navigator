@@ -1023,8 +1023,8 @@ var navMap = (function () {
         d3.select(".info")
           .html("<strong>" + d.nam + "</strong><br>" + d.noc + " occurrences")
           .style("display", "block");
-        timeScale.highlight(this);
         navMap.openCollectionModal(d);
+        timeScale.highlight(d);
       });
 
     points.exit().remove();

@@ -538,7 +538,13 @@ var timeScale = (function() {
       id = id.replace("t", "");
     } else {
       id = d3.select(d).attr("id");
-      id = id.replace("p", "");
+      if (id) {
+        id = id.replace("p", "");
+      }
+    }
+
+    if (!id) {
+      return;
     }
 
     var fill = (interval_hash[id] && interval_hash[id].color) || "#000";
