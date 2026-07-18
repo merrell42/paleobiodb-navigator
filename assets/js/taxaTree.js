@@ -1,6 +1,14 @@
 /**
  * Local taxon hierarchy: parent/child links by name.
- * Tree format: { "<taxon_name>": [<parent_name|null>, [<child_name>, ...]], ... }
+ * Tree format: {
+ *   "<taxon_name>": [
+ *     <parent_name|null>,
+ *     [<child_name>, ...],
+ *     <common_name|null>,
+ *     <total_occurrences>
+ *   ],
+ *   ...
+ * }
  */
 var taxaTree = (function () {
   var tree = null;
@@ -58,6 +66,21 @@ var taxaTree = (function () {
     return tree[name][1] || [];
   }
 
+  function getCommonName(name) {
+    if (!tree || !resolveName(name)) {
+      return null;
+    }
+    return tree[name][2] || null;
+  }
+
+  function getTotalOccurrences(name) {
+    if (!tree || !resolveName(name)) {
+      return null;
+    }
+    var total = tree[name][3];
+    return typeof total === "number" ? total : null;
+  }
+
   function getAncestors(name) {
     if (!tree) {
       return [];
@@ -88,8 +111,14 @@ var taxaTree = (function () {
 
       var children = getChildren(name);
       var ancestors = getAncestors(name);
+      var totalOccurrences = getTotalOccurrences(name);
+      var commonName = getCommonName(name);
 
       console.log("Taxon filter — " + name);
+      if (commonName) {
+        console.log("Common name:", commonName);
+      }
+      console.log("Total occurrences:", totalOccurrences != null ? totalOccurrences : "unknown");
       console.log("Children (" + children.length + "):", children);
       console.log("Ancestors (" + ancestors.length + "):", ancestors);
     }).catch(function (err) {
@@ -108,6 +137,8 @@ var taxaTree = (function () {
     load: load,
     getParent: getParent,
     getChildren: getChildren,
+    getCommonName: getCommonName,
+    getTotalOccurrences: getTotalOccurrences,
     getAncestors: getAncestors,
     logHierarchy: logHierarchy
   };

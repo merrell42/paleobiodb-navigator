@@ -19,6 +19,8 @@ build/js/tempjson
 parse_geojson.py
 parse_topojson.js
 
+taxa/common_names.json
+
 
 .DS_Store
 .AppleDouble
