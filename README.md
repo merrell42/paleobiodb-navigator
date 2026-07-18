@@ -21,6 +21,7 @@ All working files (the ones you want to edit) are found in the ````assets```` di
 ## Helpful hints
 To:
 
+  * Rebuild the taxon tree: see [taxa/README.md](taxa/README.md) (`npm run build:taxa`)
   * Rebuild the plate cache: ````grunt shell:plates```` then ````grunt shell:badPlates````
   * Rebuild the rotation cache: ````grunt shell:rotations````
   * Rebuild the collections < Phanerozoic cache: ````grunt shell:oldCollections````

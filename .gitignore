@@ -20,6 +20,7 @@ parse_geojson.py
 parse_topojson.js
 
 taxa/common_names.json
+taxa/pbdb_data.csv
 
 
 .DS_Store
