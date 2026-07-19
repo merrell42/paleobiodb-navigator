@@ -2,7 +2,7 @@
  * Compress pbdb_data.csv into parent/child links by taxon name.
  *
  * Usage:
- *   node build_taxon_tree.js [--fetch-common-names]
+ *   node build_taxon_tree.js [--fetch-common-names] [--restructure]
  *
  * Input:
  *   taxa/pbdb_data.csv — PBDB taxonomy export (see taxa/README.md)
@@ -23,18 +23,25 @@
  *
  * total_occurrences is n_occs from the CSV for leaf nodes (no children in the
  * tree). For parent nodes it is the sum of total_occurrences across children.
+ * Occurrences are computed after repairChildLinks so parent totals include all
+ * linked children.
  *
  * Common names are read from a common_name column in pbdb_data.csv when present.
  * If taxa/common_names.json exists, those entries are merged in as well.
  * Pass --fetch-common-names to download missing names from the PBDB API and
  * refresh common_names.json (batched requests). Only taxa with at least
  * MIN_OCCURRENCES_FOR_COMMON_NAMES total occurrences are queried.
+ *
+ * After building the raw tree, restructure_taxon_tree.js compresses navigation
+ * by skipping dominant children (>= 50% of anchor occurrences) and promoting
+ * their descendants.
  */
 
 var fs = require("fs");
 var http = require("http");
 var https = require("https");
 var path = require("path");
+var restructureTaxonTree = require("./restructure_taxon_tree");
 
 var INPUT = path.join(__dirname, "pbdb_data.csv");
 var OUTPUT = path.join(__dirname, "taxon_tree.json");
@@ -42,6 +49,7 @@ var COMMON_NAMES_CACHE = path.join(__dirname, "common_names.json");
 var PBDB_HOST = "paleobiodb.org";
 var PBDB_BATCH_SIZE = 200;
 var MIN_OCCURRENCES_FOR_COMMON_NAMES = 100;
+var RESTRUCTURE_TREE = true;
 
 function parseCSVLine(line) {
   var fields = [];
@@ -194,29 +202,66 @@ function fetchCommonNames(ids, cache) {
   });
 }
 
-function computeTotalOccurrences(id, childrenById, occsById, memo) {
-  if (memo.hasOwnProperty(id)) {
-    return memo[id];
+function repairChildLinks(tree) {
+  Object.keys(tree).forEach(function (name) {
+    var parentName = tree[name][0];
+    if (!parentName || !tree[parentName]) {
+      return;
+    }
+    var children = tree[parentName][1];
+    if (children.indexOf(name) < 0) {
+      children.push(name);
+    }
+  });
+
+  Object.keys(tree).forEach(function (name) {
+    tree[name][1].sort();
+  });
+}
+
+function computeTreeOccurrences(tree, directOccByName) {
+  var memo = {};
+
+  function totalFor(name, chain) {
+    if (memo.hasOwnProperty(name)) {
+      return memo[name];
+    }
+    if (chain.indexOf(name) >= 0) {
+      return 0;
+    }
+
+    var entry = tree[name];
+    if (!entry) {
+      return 0;
+    }
+
+    var kids = entry[1] || [];
+    var total;
+
+    if (!kids.length) {
+      total = directOccByName[name] || 0;
+    } else {
+      var nextChain = chain.concat([name]);
+      total = kids.reduce(function (sum, childName) {
+        return sum + totalFor(childName, nextChain);
+      }, 0);
+    }
+
+    memo[name] = total;
+    return total;
   }
 
-  var kids = childrenById[id] || [];
-  var total;
-
-  if (!kids.length) {
-    total = occsById[id] || 0;
-  } else {
-    total = kids.reduce(function (sum, childId) {
-      return sum + computeTotalOccurrences(childId, childrenById, occsById, memo);
-    }, 0);
-  }
-
-  memo[id] = total;
-  return total;
+  Object.keys(tree).forEach(function (name) {
+    tree[name][3] = totalFor(name, []);
+  });
 }
 
 function buildTree(options) {
   options = options || {};
   var fetchCommonNames = !!options.fetchCommonNames;
+  var restructureTree = options.hasOwnProperty("restructureTree")
+    ? !!options.restructureTree
+    : RESTRUCTURE_TREE;
 
   var text = fs.readFileSync(INPUT, "utf8");
   var lines = text.split(/\r?\n/);
@@ -231,7 +276,7 @@ function buildTree(options) {
   var parents = {};
   var names = {};
   var rowScore = {};
-  var occsById = {};
+  var directOccByName = {};
   var commonById = {};
   var commonNamesCache = loadCommonNamesCache();
 
@@ -263,7 +308,9 @@ function buildTree(options) {
     rowScore[acceptedNo] = score;
     parents[acceptedNo] = parentNo;
     names[acceptedNo] = acceptedName;
-    occsById[acceptedNo] = nOccs;
+    if (!directOccByName.hasOwnProperty(acceptedName) || nOccs > directOccByName[acceptedName]) {
+      directOccByName[acceptedName] = nOccs;
+    }
 
     if (commonName) {
       commonById[acceptedNo] = commonName;
@@ -289,11 +336,6 @@ function buildTree(options) {
     childrenById[parent].push(id);
   });
 
-  var totalOccMemo = {};
-  Object.keys(parents).forEach(function (idStr) {
-    computeTotalOccurrences(parseInt(idStr, 10), childrenById, occsById, totalOccMemo);
-  });
-
   var tree = {};
   Object.keys(parents).forEach(function (idStr) {
     var id = parseInt(idStr, 10);
@@ -311,25 +353,38 @@ function buildTree(options) {
       parentName,
       kids,
       commonById[id] || null,
-      totalOccMemo[id] || 0
+      0
     ];
   });
+
+  repairChildLinks(tree);
+  computeTreeOccurrences(tree, directOccByName);
+  if (restructureTree) {
+    restructureTaxonTree.restructureTree(tree, "Life");
+  }
 
   return {
     tree: tree,
     ids: Object.keys(parents).map(function (idStr) { return parseInt(idStr, 10); }),
     idsForCommonNames: Object.keys(parents)
       .map(function (idStr) { return parseInt(idStr, 10); })
-      .filter(function (id) { return totalOccMemo[id] >= MIN_OCCURRENCES_FOR_COMMON_NAMES; }),
+      .filter(function (id) {
+        var name = names[id];
+        return name && tree[name] && tree[name][3] >= MIN_OCCURRENCES_FOR_COMMON_NAMES;
+      }),
     commonNamesCache: commonNamesCache
   };
 }
 
 function main() {
   var shouldFetchCommonNames = process.argv.indexOf("--fetch-common-names") >= 0;
+  var restructureTree = process.argv.indexOf("--restructure") >= 0 || RESTRUCTURE_TREE;
   console.log("Reading " + INPUT + "...");
 
-  var result = buildTree({ fetchCommonNames: shouldFetchCommonNames });
+  var result = buildTree({
+    fetchCommonNames: shouldFetchCommonNames,
+    restructureTree: restructureTree
+  });
   var tree = result.tree;
   var nodeCount = Object.keys(tree).length;
 
@@ -354,7 +409,7 @@ function main() {
   );
 
   fetchCommonNames(result.idsForCommonNames, result.commonNamesCache).then(function () {
-    result = buildTree({ fetchCommonNames: false });
+    result = buildTree({ fetchCommonNames: false, restructureTree: restructureTree });
     tree = result.tree;
     writeOutput();
   }).catch(function (err) {

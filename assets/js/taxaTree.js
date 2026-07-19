@@ -151,12 +151,17 @@ var taxaTree = (function () {
       var totalOccurrences = getTotalOccurrences(name);
       var commonName = getCommonName(name);
 
+      var childrenWithOccurrences = children.map(function (childName) {
+        var childOccurrences = getTotalOccurrences(childName);
+        return childName + " (" + (childOccurrences != null ? childOccurrences : "unknown") + ")";
+      });
+
       console.log("Taxon filter — " + name);
       if (commonName) {
         console.log("Common name:", commonName);
       }
       console.log("Total occurrences:", totalOccurrences != null ? totalOccurrences : "unknown");
-      console.log("Children (" + children.length + "):", children);
+      console.log("Children (" + children.length + "):", childrenWithOccurrences);
       console.log("Ancestors (" + ancestors.length + "):", ancestors);
     }).catch(function (err) {
       console.warn("Could not load taxon tree:", err);

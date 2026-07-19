@@ -6,6 +6,7 @@
   "scripts": {
     "start": "python -m SimpleHTTPServer",
     "build:taxa": "node taxa/build_taxon_tree.js",
+    "build:taxa:restructure": "node taxa/build_taxon_tree.js --restructure",
     "build:taxa:common-names": "node taxa/build_taxon_tree.js --fetch-common-names"
   },
   "repository": {
