@@ -10,6 +10,12 @@
 
 var SPLIT_THRESHOLD = 0.5;
 
+var NEVER_SKIP_TAXA = ["Mammalia", "Animalia"];
+
+function cannotSkipTaxon(taxonName) {
+  return NEVER_SKIP_TAXA.includes(taxonName);
+}
+
 function getParent(entry) {
   return entry[0];
 }
@@ -65,7 +71,7 @@ function findNewChildren(tree, nodeNameA, anchorName, chain) {
 
     var fractionB = occurrencesB / getOccurrences(anchor);
     var isLeaf = getChildren(childB).length === 0;
-    if (fractionB < SPLIT_THRESHOLD || isLeaf) {
+    if (fractionB < SPLIT_THRESHOLD || isLeaf || cannotSkipTaxon(childNameB)) {
       newChildren.push(childNameB);
     } else {
       var newChildrenB = findNewChildren(tree, childNameB, anchorName, chain);
