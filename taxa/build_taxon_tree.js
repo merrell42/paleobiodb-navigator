@@ -42,6 +42,10 @@ var http = require("http");
 var https = require("https");
 var path = require("path");
 var restructureTaxonTree = require("./restructure_taxon_tree");
+var getParent = restructureTaxonTree.getParent;
+var getChildren = restructureTaxonTree.getChildren;
+var getOccurrences = restructureTaxonTree.getOccurrences;
+var setOccurrences = restructureTaxonTree.setOccurrences;
 
 var INPUT = path.join(__dirname, "pbdb_data.csv");
 var OUTPUT = path.join(__dirname, "taxon_tree.json");
@@ -202,31 +206,31 @@ function fetchCommonNames(ids, cache) {
   });
 }
 
+// The original data is not correct. Sometimes a taxon has a parent, but the
+// parent is not listed as a child. Repairs the tree by adding such a taxon
+// as a child of the parent.
 function repairChildLinks(tree) {
-  Object.keys(tree).forEach(function (name) {
-    var parentName = tree[name][0];
-    if (!parentName || !tree[parentName]) {
+  Object.keys(tree).forEach((name) => {
+    var parentName = getParent(tree[name]);
+    if (!tree[parentName]) {
       return;
     }
-    var children = tree[parentName][1];
-    if (children.indexOf(name) < 0) {
+    var children = getChildren(tree[parentName]);
+    if (!children.includes(name)) {
       children.push(name);
     }
   });
-
-  Object.keys(tree).forEach(function (name) {
-    tree[name][1].sort();
-  });
 }
 
-function computeTreeOccurrences(tree, directOccByName) {
+function computeOccurrences(tree, occurrencesForLeafNodes) {
   var memo = {};
 
   function totalFor(name, chain) {
     if (memo.hasOwnProperty(name)) {
       return memo[name];
     }
-    if (chain.indexOf(name) >= 0) {
+    // Exit early if there is a cycle in the tree.
+    if (chain.includes(name)) {
       return 0;
     }
 
@@ -235,24 +239,26 @@ function computeTreeOccurrences(tree, directOccByName) {
       return 0;
     }
 
-    var kids = entry[1] || [];
-    var total;
+    var children = getChildren(entry);
 
-    if (!kids.length) {
-      total = directOccByName[name] || 0;
+    var occurences;
+    if (children.length === 0) {
+      // Leaf node.
+      occurences = occurrencesForLeafNodes[name] || 0;
     } else {
+      // Parent node. Sum the occurrences of all children.
       var nextChain = chain.concat([name]);
-      total = kids.reduce(function (sum, childName) {
+      occurences = children.reduce(function (sum, childName) {
         return sum + totalFor(childName, nextChain);
       }, 0);
     }
 
-    memo[name] = total;
-    return total;
+    memo[name] = occurences;
+    return occurences;
   }
 
   Object.keys(tree).forEach(function (name) {
-    tree[name][3] = totalFor(name, []);
+    setOccurrences(tree[name], totalFor(name, []));
   });
 }
 
@@ -276,7 +282,7 @@ function buildTree(options) {
   var parents = {};
   var names = {};
   var rowScore = {};
-  var directOccByName = {};
+  var occurrencesForLeafNodes = {};
   var commonById = {};
   var commonNamesCache = loadCommonNamesCache();
 
@@ -296,11 +302,15 @@ function buildTree(options) {
     var acceptedName = field(row, columns, "accepted_name");
     var parentNo = toInt(field(row, columns, "parent_no"));
     var parentName = field(row, columns, "parent_name");
-    var nOccs = toInt(field(row, columns, "n_occs")) || 0;
+    var numOccurences = toInt(field(row, columns, "n_occs")) || 0;
     var commonName = field(row, columns, "common_name") || null;
 
-    if (!acceptedNo || !acceptedName) continue;
-    if (parentNo === acceptedNo) continue;
+    if (!acceptedNo || !acceptedName) {
+      continue;
+    }
+    if (parentNo === acceptedNo) {
+      continue;
+    }
 
     var score = scoreRow(difference, taxonName, acceptedName, taxonNo, acceptedNo, parentNo);
     if (rowScore[acceptedNo] && rowScore[acceptedNo] > score) continue;
@@ -308,8 +318,8 @@ function buildTree(options) {
     rowScore[acceptedNo] = score;
     parents[acceptedNo] = parentNo;
     names[acceptedNo] = acceptedName;
-    if (!directOccByName.hasOwnProperty(acceptedName) || nOccs > directOccByName[acceptedName]) {
-      directOccByName[acceptedName] = nOccs;
+    if (!occurrencesForLeafNodes.hasOwnProperty(acceptedName) || numOccurences > occurrencesForLeafNodes[acceptedName]) {
+      occurrencesForLeafNodes[acceptedName] = numOccurences;
     }
 
     if (commonName) {
@@ -358,7 +368,7 @@ function buildTree(options) {
   });
 
   repairChildLinks(tree);
-  computeTreeOccurrences(tree, directOccByName);
+  computeOccurrences(tree, occurrencesForLeafNodes);
   if (restructureTree) {
     restructureTaxonTree.restructureTree(tree, "Life");
   }
@@ -370,7 +380,7 @@ function buildTree(options) {
       .map(function (idStr) { return parseInt(idStr, 10); })
       .filter(function (id) {
         var name = names[id];
-        return name && tree[name] && tree[name][3] >= MIN_OCCURRENCES_FOR_COMMON_NAMES;
+        return name && tree[name] && getOccurrences(tree[name]) >= MIN_OCCURRENCES_FOR_COMMON_NAMES;
       }),
     commonNamesCache: commonNamesCache
   };

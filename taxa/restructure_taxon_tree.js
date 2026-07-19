@@ -34,6 +34,10 @@ function setChildren(entry, children) {
   entry[1] = children;
 }
 
+function setOccurrences(entry, occurrences) {
+  entry[3] = occurrences;
+}
+
 // Find the new children of the anchor node. NodeA is a descendant of the anchor.
 // If one children has most of the descendants of the anchor, we skip it and promote
 // its descendants to the anchor. This allows to skip to the more interesting parts of the tree.
@@ -97,6 +101,13 @@ function restructureTree(tree, rootName) {
 }
 
 module.exports = {
+  getParent: getParent,
+  getChildren: getChildren,
+  getCommonName: getCommonName,
+  getOccurrences: getOccurrences,
+  setParent: setParent,
+  setChildren: setChildren,
+  setOccurrences: setOccurrences,
   findNewChildren: findNewChildren,
   restructureTree: restructureTree
 };

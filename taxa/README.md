@@ -45,13 +45,7 @@ From the repository root:
 npm run build:taxa
 ```
 
-The build reads `pbdb_data.csv`, writes a parent/child tree, and repairs missing child links. Restructuring is **off by default**. To compress navigation (skip dominant children, promote descendants):
-
-```bash
-npm run build:taxa:restructure
-```
-
-Or set `RESTRUCTURE_TREE = true` in `build_taxon_tree.js`, or pass `--restructure`.
+The build reads `pbdb_data.csv`, writes a parent/child tree, repairs missing child links, computes occurrence totals, and restructures navigation **by default** (skip dominant children that contain most of the anchor occurrences; promote their descendants). Set `RESTRUCTURE_TREE = false` in `build_taxon_tree.js` for a raw tree without restructuring.
 
 To also fetch English common names from the PBDB API for taxa with at least 100 occurrences (writes `common_names.json`, then rebuilds):
 
