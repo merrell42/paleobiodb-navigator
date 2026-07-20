@@ -2098,6 +2098,9 @@ var navMap = (function () {
     // Check if there are any others left
     if (navMap.filters.taxa.length < 1) {
       navMap.filters.exist["taxon"] = false;
+      if (typeof taxaTreeHierarchy !== "undefined" && taxaTreeHierarchy.hideHierarchy) {
+        taxaTreeHierarchy.hideHierarchy();
+      }
     }
 
     d3.select(".taxa").style("box-shadow", "");

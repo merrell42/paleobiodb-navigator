@@ -143,6 +143,7 @@ var taxaTree = (function () {
     return load().then(function () {
       if (!resolveName(name)) {
         console.log("Taxon not found in local tree:", name);
+        taxaTreeHierarchy.hideHierarchy();
         return;
       }
 
@@ -163,6 +164,8 @@ var taxaTree = (function () {
       console.log("Total occurrences:", totalOccurrences != null ? totalOccurrences : "unknown");
       console.log("Children (" + children.length + "):", childrenWithOccurrences);
       console.log("Ancestors (" + ancestors.length + "):", ancestors);
+
+      taxaTreeHierarchy.showHierarchy(name);
     }).catch(function (err) {
       console.warn("Could not load taxon tree:", err);
     });

@@ -2,7 +2,7 @@
  * Compress pbdb_data.csv into parent/child links by taxon name.
  *
  * Usage:
- *   node build_taxon_tree.js [--fetch-common-names] [--restructure]
+ *   node build_taxon_tree.js [--fetch-common-names] [--no-restructure]
  *
  * Input:
  *   taxa/pbdb_data.csv — PBDB taxonomy export (see taxa/README.md)
@@ -109,6 +109,80 @@ function scoreRow(difference, taxonName, acceptedName, taxonNo, acceptedNo, pare
   if (toInt(taxonNo) === acceptedNo) score += 2;
   if (parentNo && parentNo !== acceptedNo) score += 1;
   return score;
+}
+
+// PBDB reuses names across unrelated clades. Pick one accepted_no per name so
+// homonyms do not overwrite each other's parent/child links in the name-keyed tree.
+function pickCanonicalIdByName(names, rowScore, occurrencesById) {
+  var idsByName = {};
+  Object.keys(names).forEach(function (idStr) {
+    var id = parseInt(idStr, 10);
+    var name = names[id];
+    if (!name) {
+      return;
+    }
+    if (!idsByName[name]) {
+      idsByName[name] = [];
+    }
+    idsByName[name].push(id);
+  });
+
+  var canonicalIdByName = {};
+  Object.keys(idsByName).forEach(function (name) {
+    var ids = idsByName[name].slice().sort(function (a, b) {
+      var occDiff = (occurrencesById[b] || 0) - (occurrencesById[a] || 0);
+      if (occDiff !== 0) {
+        return occDiff;
+      }
+      return (rowScore[b] || 0) - (rowScore[a] || 0);
+    });
+    canonicalIdByName[name] = ids[0];
+  });
+
+  return canonicalIdByName;
+}
+
+function resolveCanonicalId(id, names, canonicalIdByName) {
+  var name = names[id];
+  if (!name) {
+    return id;
+  }
+  return canonicalIdByName[name] || id;
+}
+
+function resolveParentName(parentId, names, canonicalIdByName) {
+  if (!parentId) {
+    return null;
+  }
+  var parentCanon = resolveCanonicalId(parentId, names, canonicalIdByName);
+  return names[parentCanon] || names[parentId] || null;
+}
+
+function buildChildrenById(parents, names, canonicalIdByName) {
+  var childrenById = {};
+
+  Object.keys(parents).forEach(function (idStr) {
+    var id = parseInt(idStr, 10);
+    var parent = parents[id];
+    if (!parent || parent === id) {
+      return;
+    }
+
+    var name = names[id];
+    if (!name || canonicalIdByName[name] !== id) {
+      return;
+    }
+
+    var parentCanon = resolveCanonicalId(parent, names, canonicalIdByName);
+    if (!childrenById[parentCanon]) {
+      childrenById[parentCanon] = [];
+    }
+    if (childrenById[parentCanon].indexOf(id) < 0) {
+      childrenById[parentCanon].push(id);
+    }
+  });
+
+  return childrenById;
 }
 
 function loadCommonNamesCache() {
@@ -282,6 +356,7 @@ function buildTree(options) {
   var parents = {};
   var names = {};
   var rowScore = {};
+  var occurrencesById = {};
   var occurrencesForLeafNodes = {};
   var commonById = {};
   var commonNamesCache = loadCommonNamesCache();
@@ -316,6 +391,7 @@ function buildTree(options) {
     if (rowScore[acceptedNo] && rowScore[acceptedNo] > score) continue;
 
     rowScore[acceptedNo] = score;
+    occurrencesById[acceptedNo] = numOccurences;
     parents[acceptedNo] = parentNo;
     names[acceptedNo] = acceptedName;
     if (!occurrencesForLeafNodes.hasOwnProperty(acceptedName) || numOccurences > occurrencesForLeafNodes[acceptedName]) {
@@ -337,23 +413,13 @@ function buildTree(options) {
     }
   }
 
-  var childrenById = {};
-  Object.keys(parents).forEach(function (idStr) {
-    var id = parseInt(idStr, 10);
-    var parent = parents[id];
-    if (!parent || parent === id) return;
-    if (!childrenById[parent]) childrenById[parent] = [];
-    childrenById[parent].push(id);
-  });
+  var canonicalIdByName = pickCanonicalIdByName(names, rowScore, occurrencesById);
+  var childrenById = buildChildrenById(parents, names, canonicalIdByName);
 
   var tree = {};
-  Object.keys(parents).forEach(function (idStr) {
-    var id = parseInt(idStr, 10);
-    var name = names[id];
-    if (!name) return;
-
-    var parentId = parents[id] || null;
-    var parentName = parentId ? names[parentId] : null;
+  Object.keys(canonicalIdByName).forEach(function (name) {
+    var id = canonicalIdByName[name];
+    var parentName = resolveParentName(parents[id] || null, names, canonicalIdByName);
     var kids = (childrenById[id] || [])
       .map(function (childId) { return names[childId]; })
       .filter(Boolean)
@@ -388,7 +454,7 @@ function buildTree(options) {
 
 function main() {
   var shouldFetchCommonNames = process.argv.indexOf("--fetch-common-names") >= 0;
-  var restructureTree = process.argv.indexOf("--restructure") >= 0 || RESTRUCTURE_TREE;
+  var restructureTree = process.argv.indexOf("--no-restructure") >= 0 ? false : RESTRUCTURE_TREE;
   console.log("Reading " + INPUT + "...");
 
   var result = buildTree({
