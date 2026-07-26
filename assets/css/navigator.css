@@ -272,6 +272,7 @@ nav {
 #graphics {
   padding-left:0;
   padding-right:0;
+  position: relative;
 }
 #graphicRow {
   width:100%;
@@ -425,6 +426,7 @@ nav {
   margin-top: 10%;
 }
 .prevalence-row {
+  display: none;
   position: absolute;
   z-index: 10;
   background-color: rgba(255,255,255,0.95);
@@ -503,6 +505,90 @@ nav {
   bottom:16px;
   min-height: 52px;
   min-width: 110px;
+}
+.localTaxonHierarchy {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--local-hierarchy-gap);
+  pointer-events: none;
+  --local-hierarchy-column-width: 109px;
+  --local-hierarchy-gap: 4px;
+}
+.local-hierarchy-ancestors-panel {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: var(--local-hierarchy-gap);
+  max-width: 70vw;
+  padding-top: var(--local-hierarchy-gap);
+  background: transparent;
+}
+.local-hierarchy-ancestors-panel .local-hierarchy-btn,
+.local-hierarchy-current-label {
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 1px 5px;
+}
+.local-hierarchy-current-label {
+  display: block;
+  box-sizing: border-box;
+  width: var(--local-hierarchy-column-width);
+  text-align: center;
+  color: #333;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  flex-shrink: 0;
+  opacity: 1;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+.local-hierarchy-ancestors-panel .local-hierarchy-btn {
+  white-space: normal;
+  text-align: left;
+  width: auto;
+  background-color: #fff;
+  opacity: 1;
+}
+.local-hierarchy-children-panel {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: var(--local-hierarchy-column-width);
+  padding: 0;
+  gap: var(--local-hierarchy-gap);
+  background: transparent;
+}
+.local-hierarchy-children-panel .local-hierarchy-btn {
+  white-space: normal;
+  text-align: center;
+  width: 100%;
+  padding: 2px 6px;
+  line-height: 1.25;
+  background-color: #fff;
+  opacity: 1;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+.local-hierarchy-children-panel .local-hierarchy-btn.local-hierarchy-text-large {
+  font-size: 10px;
+}
+.local-hierarchy-children-panel .local-hierarchy-btn.local-hierarchy-text-small {
+  font-size: 9px;
+}
+.local-hierarchy-primary-line,
+.local-hierarchy-secondary-line {
+  display: block;
 }
 .info {
   display: none;

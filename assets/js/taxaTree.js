@@ -14,6 +14,7 @@ var taxaTree = (function () {
   var tree = null;
   var loading = null;
   var commonNameIndex = [];
+  var ROOT_TAXON = "Life";
 
   function buildCommonNameIndex(data) {
     commonNameIndex = [];
@@ -171,6 +172,19 @@ var taxaTree = (function () {
     });
   }
 
+  function showRootHierarchy() {
+    return load().then(function () {
+      if (!resolveName(ROOT_TAXON)) {
+        console.warn("Root taxon not found in local tree:", ROOT_TAXON);
+        taxaTreeHierarchy.hideHierarchy();
+        return;
+      }
+      taxaTreeHierarchy.showHierarchy(ROOT_TAXON);
+    }).catch(function (err) {
+      console.warn("Could not show root hierarchy:", err);
+    });
+  }
+
   function init() {
     return load().catch(function (err) {
       console.warn("Taxon tree preload failed:", err);
@@ -186,6 +200,8 @@ var taxaTree = (function () {
     getTotalOccurrences: getTotalOccurrences,
     searchByCommonName: searchByCommonName,
     getAncestors: getAncestors,
-    logHierarchy: logHierarchy
+    logHierarchy: logHierarchy,
+    showRootHierarchy: showRootHierarchy,
+    ROOT_TAXON: ROOT_TAXON
   };
 })();

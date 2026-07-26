@@ -2,39 +2,101 @@
  * Navigation-tree UI: clickable ancestor and child buttons for the local taxon tree.
  */
 var taxaTreeHierarchy = (function () {
-  function formatTaxonButtonLabel(taxonName, showOccurrences) {
-    var label = taxonName;
-    if (showOccurrences) {
-      var occurrences = taxaTree.getTotalOccurrences(taxonName);
-      label += " (" + (occurrences != null ? occurrences : "unknown") + ")";
+  function getOccurrencePercentValue(occurrences, total) {
+    if (occurrences == null || total == null || total === 0) {
+      return null;
     }
-    var common = taxaTree.getCommonName(taxonName);
-    if (common) {
-      label += " — " + common;
-    }
-    return label;
+    return (occurrences / total) * 100;
   }
 
-  function renderHierarchyButtons(containerId, taxonNames, showOccurrences) {
-    var container = document.getElementById(containerId);
-    if (!container) {
+  function formatOccurrencePercentage(occurrences, total) {
+    var percent = getOccurrencePercentValue(occurrences, total);
+    if (percent == null) {
+      return "unknown";
+    }
+    if (percent < 1) {
+      return "";
+    }
+    return Math.round(percent) + "%";
+  }
+
+  function capitalizeName(name) {
+    return name.split(" ").map(function (word) {
+      if (!word) {
+        return word;
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    }).join(" ");
+  }
+
+  function createTaxonButton(taxonName, showOccurrences, showCommonName, parentTotalOccurrences) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn btn-default btn-xs local-hierarchy-btn";
+    button.setAttribute("data-taxon-name", taxonName);
+
+    var common = showCommonName !== false ? taxaTree.getCommonName(taxonName) : null;
+    var percent = "";
+    var percentValue = null;
+    if (showOccurrences) {
+      var occurrences = taxaTree.getTotalOccurrences(taxonName);
+      percentValue = getOccurrencePercentValue(occurrences, parentTotalOccurrences);
+      percent = formatOccurrencePercentage(occurrences, parentTotalOccurrences);
+      button.classList.add(percentValue != null && percentValue >= 1
+        ? "local-hierarchy-text-large"
+        : "local-hierarchy-text-small");
+    }
+
+    var primaryLine = document.createElement("span");
+    primaryLine.className = "local-hierarchy-primary-line";
+    primaryLine.textContent = taxonName;
+    button.appendChild(primaryLine);
+
+    if (common) {
+      var secondaryText = capitalizeName(common);
+      if (percent) {
+        secondaryText += " " + percent;
+      }
+      var secondaryLine = document.createElement("span");
+      secondaryLine.className = "local-hierarchy-secondary-line";
+      secondaryLine.textContent = secondaryText;
+      button.appendChild(secondaryLine);
+    } else if (percent) {
+      primaryLine.textContent = taxonName + " " + percent;
+    }
+
+    return button;
+  }
+
+  function renderAncestorsRow(name) {
+    var panel = document.getElementById("localTaxonAncestorsPanel");
+    if (!panel) {
       return;
     }
 
-    container.innerHTML = "";
+    panel.innerHTML = "";
+    var ancestors = taxaTree.getAncestors(name).slice().reverse();
 
-    if (taxonNames.length === 0) {
-      container.innerHTML = '<span class="local-hierarchy-empty">None</span>';
+    ancestors.forEach(function (taxonName) {
+      panel.appendChild(createTaxonButton(taxonName, false, false));
+    });
+
+    var label = document.createElement("span");
+    label.className = "local-hierarchy-current-label";
+    label.textContent = name;
+    panel.appendChild(label);
+  }
+
+  function renderChildrenColumn(children, parentName) {
+    var panel = document.getElementById("localTaxonChildrenPanel");
+    if (!panel) {
       return;
     }
 
-    taxonNames.forEach(function (taxonName) {
-      var button = document.createElement("button");
-      button.type = "button";
-      button.className = "btn btn-default btn-xs local-hierarchy-btn";
-      button.setAttribute("data-taxon-name", taxonName);
-      button.textContent = formatTaxonButtonLabel(taxonName, showOccurrences);
-      container.appendChild(button);
+    var parentTotalOccurrences = taxaTree.getTotalOccurrences(parentName);
+    panel.innerHTML = "";
+    children.forEach(function (taxonName) {
+      panel.appendChild(createTaxonButton(taxonName, true, undefined, parentTotalOccurrences));
     });
   }
 
@@ -54,13 +116,19 @@ var taxaTreeHierarchy = (function () {
       return;
     }
 
-    var ancestors = taxaTree.getAncestors(name).slice().reverse();
-    var children = taxaTree.getChildren(name);
+    return taxaTree.load().then(function () {
+      var children = taxaTree.getChildren(name);
+      var childrenPanel = document.getElementById("localTaxonChildrenPanel");
 
-    renderHierarchyButtons("localTaxonAncestors", ancestors, false);
-    renderHierarchyButtons("localTaxonChildren", children, true);
-    attachHierarchyClickHandlers();
-    panel.style.display = "block";
+      renderAncestorsRow(name);
+      renderChildrenColumn(children, name);
+      attachHierarchyClickHandlers();
+
+      panel.style.display = "flex";
+      if (childrenPanel) {
+        childrenPanel.style.display = children.length > 0 ? "flex" : "none";
+      }
+    });
   }
 
   function hideHierarchy() {

@@ -112,23 +112,17 @@
               </table>
             </div>
 
-            <div id="localTaxonHierarchy" class="localTaxonHierarchy" style="display: none;">
-              <p class="local-hierarchy-title"><strong>Navigation tree</strong></p>
-              <div class="local-hierarchy-section">
-                <span class="local-hierarchy-label">Ancestors</span>
-                <div id="localTaxonAncestors" class="local-hierarchy-buttons"></div>
-              </div>
-              <div class="local-hierarchy-section">
-                <span class="local-hierarchy-label">Children</span>
-                <div id="localTaxonChildren" class="local-hierarchy-buttons"></div>
-              </div>
-            </div>
           </div>
           <p class="taxaBrowserToggle" id="collapseTaxaBrowser"><i class="fa fa-angle-double-left"></i>Collapse taxa browser</p>
         </div>
 
       	<div class="col-sm-12" id="graphics">
           <i class="fa fa-spinner fa-3x fa-spin" id="loading"></i>
+
+          <div id="localTaxonHierarchy" class="localTaxonHierarchy" style="display: none;">
+            <div id="localTaxonAncestorsPanel" class="local-hierarchy-ancestors-panel"></div>
+            <div id="localTaxonChildrenPanel" class="local-hierarchy-children-panel" style="display: none;"></div>
+          </div>
 
           <div id="infoContainer">
             <div class="info leaflet-control"></div>

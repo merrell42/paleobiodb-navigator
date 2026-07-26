@@ -44,6 +44,9 @@ var paleo_nav = (function() {
           navMap.resizeSvgMap();
           navMap.resize();
           navMap.refresh("reset");
+          if (!navMap.filters.exist.taxon && taxaTree.showRootHierarchy) {
+            taxaTree.showRootHierarchy();
+          }
         });
         reconstructMap.init();
         taxaBrowser.init();
@@ -811,6 +814,10 @@ var paleo_nav = (function() {
       setTimeout(navMap.resize, 500);
       this.getPrevalence();
 
+      if (!navMap.filters.exist.taxon && taxaTree.showRootHierarchy) {
+        taxaTree.showRootHierarchy();
+      }
+
       if (!localStorage.pbdb) {
         if (window.innerWidth > 700) {
           $("#helpModal").modal("show");
@@ -928,7 +935,6 @@ var paleo_nav = (function() {
       d3.select("#reconstructMap").style("display","none");
       timeScale.unhighlight();
 
-      d3.select(".prevalence-row").style("display", "block");
       paleo_nav.getPrevalence();
 
       // Show the time interval filter remove button
