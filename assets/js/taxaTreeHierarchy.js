@@ -29,6 +29,13 @@ var taxaTreeHierarchy = (function () {
     }).join(" ");
   }
 
+  function getIconUrl(iconId) {
+    if (!iconId || typeof paleo_nav === "undefined") {
+      return null;
+    }
+    return paleo_nav.dataUrl + paleo_nav.dataService + "/taxa/thumb.png?id=" + iconId;
+  }
+
   function createTaxonButton(taxonName, showOccurrences, showCommonName, parentTotalOccurrences) {
     var button = document.createElement("button");
     button.type = "button";
@@ -50,6 +57,19 @@ var taxaTreeHierarchy = (function () {
     var primaryLine = document.createElement("span");
     primaryLine.className = "local-hierarchy-primary-line";
     primaryLine.textContent = taxonName;
+
+    if (showOccurrences && percentValue != null && percentValue >= 1) {
+      var iconId = taxaTree.getIcon(taxonName);
+      var iconUrl = getIconUrl(iconId);
+      if (iconUrl) {
+        var icon = document.createElement("img");
+        icon.className = "local-hierarchy-icon";
+        icon.src = iconUrl;
+        icon.alt = "";
+        button.appendChild(icon);
+      }
+    }
+
     button.appendChild(primaryLine);
 
     if (common) {
@@ -87,6 +107,14 @@ var taxaTreeHierarchy = (function () {
     panel.appendChild(label);
   }
 
+  function getQualifyingChildren(children, parentTotalOccurrences) {
+    return children.filter(function (taxonName) {
+      var occurrences = taxaTree.getTotalOccurrences(taxonName);
+      var percentValue = getOccurrencePercentValue(occurrences, parentTotalOccurrences);
+      return percentValue != null && percentValue >= 1;
+    });
+  }
+
   function renderChildrenColumn(children, parentName) {
     var panel = document.getElementById("localTaxonChildrenPanel");
     if (!panel) {
@@ -119,15 +147,28 @@ var taxaTreeHierarchy = (function () {
     return taxaTree.load().then(function () {
       var children = taxaTree.getChildren(name);
       var childrenPanel = document.getElementById("localTaxonChildrenPanel");
+      var parentTotalOccurrences = taxaTree.getTotalOccurrences(name);
+      var qualifyingChildren = getQualifyingChildren(children, parentTotalOccurrences);
 
-      renderAncestorsRow(name);
-      renderChildrenColumn(children, name);
-      attachHierarchyClickHandlers();
+      return taxaTree.fetchIcons(qualifyingChildren).then(function () {
+        renderAncestorsRow(name);
+        renderChildrenColumn(children, name);
+        attachHierarchyClickHandlers();
 
-      panel.style.display = "flex";
-      if (childrenPanel) {
-        childrenPanel.style.display = children.length > 0 ? "flex" : "none";
-      }
+        panel.style.display = "flex";
+        if (childrenPanel) {
+          childrenPanel.style.display = children.length > 0 ? "flex" : "none";
+        }
+      }).catch(function () {
+        renderAncestorsRow(name);
+        renderChildrenColumn(children, name);
+        attachHierarchyClickHandlers();
+
+        panel.style.display = "flex";
+        if (childrenPanel) {
+          childrenPanel.style.display = children.length > 0 ? "flex" : "none";
+        }
+      });
     });
   }
 

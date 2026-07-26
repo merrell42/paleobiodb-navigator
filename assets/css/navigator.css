@@ -590,6 +590,11 @@ nav {
 .local-hierarchy-secondary-line {
   display: block;
 }
+.local-hierarchy-children-panel .local-hierarchy-icon {
+  display: block;
+  height: 28px;
+  margin: 0 auto 2px;
+}
 .info {
   display: none;
   padding: 10px;

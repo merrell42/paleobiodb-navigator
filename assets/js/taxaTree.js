@@ -14,6 +14,7 @@ var taxaTree = (function () {
   var tree = null;
   var loading = null;
   var commonNameIndex = [];
+  var iconCache = {};
   var ROOT_TAXON = "Life";
 
   function buildCommonNameIndex(data) {
@@ -119,6 +120,48 @@ var taxaTree = (function () {
     return typeof total === "number" ? total : null;
   }
 
+  function getIcon(name) {
+    if (!iconCache.hasOwnProperty(name)) {
+      return null;
+    }
+    return iconCache[name];
+  }
+
+  function fetchIcons(names) {
+    if (!names || !names.length || typeof paleo_nav === "undefined") {
+      return Promise.resolve(iconCache);
+    }
+
+    var uncached = names.filter(function (name) {
+      return !iconCache.hasOwnProperty(name);
+    });
+
+    if (!uncached.length) {
+      return Promise.resolve(iconCache);
+    }
+
+    var url = paleo_nav.dataUrl + paleo_nav.dataService +
+      "/taxa/list.json?name=" + encodeURIComponent(uncached.join(",")) + "&show=img";
+
+    return new Promise(function (resolve, reject) {
+      d3.json(url, function (err, data) {
+        if (err) {
+          return reject(err);
+        }
+
+        uncached.forEach(function (name) {
+          iconCache[name] = null;
+        });
+
+        (data.records || []).forEach(function (record) {
+          iconCache[record.nam] = record.img || null;
+        });
+
+        resolve(iconCache);
+      });
+    });
+  }
+
   function getAncestors(name) {
     if (!tree) {
       return [];
@@ -198,6 +241,8 @@ var taxaTree = (function () {
     getChildren: getChildren,
     getCommonName: getCommonName,
     getTotalOccurrences: getTotalOccurrences,
+    getIcon: getIcon,
+    fetchIcons: fetchIcons,
     searchByCommonName: searchByCommonName,
     getAncestors: getAncestors,
     logHierarchy: logHierarchy,
