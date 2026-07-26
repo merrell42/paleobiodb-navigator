@@ -493,18 +493,33 @@ nav {
   float:right;
   letter-spacing: 0.05em;
 }
-#infoContainer {
+.filters {
   position: absolute;
   z-index: 2;
+  padding: 10px;
   background-color: rgba(255,255,255,0.95);
-  border-top: 1px solid #ddd;
-  border-left: 1px solid #ccc;
+  border: 1px solid #ccc;
+  text-align: center;
+  display: none;
+  left: 6px;
+}
+.filters > .filter-title-row {
   display: block;
-  right: 0;
-  z-index: 100;
-  bottom:16px;
-  min-height: 52px;
-  min-width: 110px;
+  margin: 0 0 4px 0;
+}
+.filters.has-active-filters .info {
+  border-top: 1px solid #ddd;
+  margin-top: 6px;
+  padding-top: 6px;
+}
+.filters .info {
+  display: none;
+  padding: 0;
+  font-size: 0.8em;
+  text-align: center;
+}
+.filters > p:not(.filter-title-row) {
+  display: inline;
 }
 .localTaxonHierarchy {
   position: absolute;
@@ -589,6 +604,25 @@ nav {
   padding: 0;
   gap: var(--local-hierarchy-gap);
   background: transparent;
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex-shrink: 1;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
+}
+.local-hierarchy-children-panel::-webkit-scrollbar {
+  width: 4px;
+}
+.local-hierarchy-children-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+.local-hierarchy-children-panel::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.18);
+  border-radius: 2px;
+}
+.local-hierarchy-children-panel::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.3);
 }
 .local-hierarchy-children-panel .local-hierarchy-btn {
   white-space: normal;
@@ -636,24 +670,6 @@ nav {
   border-color: #ccc;
   outline: none;
   box-shadow: none;
-}
-.info {
-  display: none;
-  padding: 10px;
-  font-size: 0.8em;
-}
-.filters {
-  position: absolute;
-  z-index: 2;
-  padding: 10px;
-  background-color: rgba(255,255,255,0.95);
-  border: 1px solid #ccc;
-  text-align: center;
-  display: none;
-  left:0;
-}
-.filters > p {
-  display: inline;
 }
 .filter {
   display: none;
@@ -1320,8 +1336,8 @@ br {
   .prevalence-row {
     display: none;
   }
-  #infoContainer {
-    display: none;
+  .filters .info {
+    display: none !important;
   }
   #loading {
     left: 0;

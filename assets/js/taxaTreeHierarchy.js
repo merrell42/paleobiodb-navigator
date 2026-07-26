@@ -117,6 +117,50 @@ var taxaTreeHierarchy = (function () {
     });
   }
 
+  function getChildrenPanelBoundaryTop() {
+    var timeEl = document.getElementById("time");
+    if (timeEl) {
+      var timeScale = document.querySelector(".timeScale");
+      if (!timeScale || window.getComputedStyle(timeScale).visibility !== "hidden") {
+        return timeEl.getBoundingClientRect().top;
+      }
+    }
+
+    var graphics = document.getElementById("graphics");
+    if (graphics) {
+      return graphics.getBoundingClientRect().bottom;
+    }
+
+    var map = document.getElementById("map");
+    if (map) {
+      return map.getBoundingClientRect().bottom;
+    }
+
+    return null;
+  }
+
+  function updateChildrenPanelMaxHeight() {
+    var childrenPanel = document.getElementById("localTaxonChildrenPanel");
+    if (!childrenPanel || childrenPanel.style.display === "none") {
+      return;
+    }
+
+    var gap = 4;
+    var boundaryTop = getChildrenPanelBoundaryTop();
+
+    if (boundaryTop == null) {
+      childrenPanel.style.maxHeight = "";
+      return;
+    }
+
+    var maxHeight = boundaryTop - childrenPanel.getBoundingClientRect().top - gap;
+    if (maxHeight > 0) {
+      childrenPanel.style.maxHeight = Math.floor(maxHeight) + "px";
+    } else {
+      childrenPanel.style.maxHeight = "";
+    }
+  }
+
   function renderChildrenColumn(children, parentName, expanded) {
     var panel = document.getElementById("localTaxonChildrenPanel");
     if (!panel) {
@@ -138,7 +182,7 @@ var taxaTreeHierarchy = (function () {
       var moreButton = document.createElement("button");
       moreButton.type = "button";
       moreButton.className = "btn btn-default btn-xs local-hierarchy-more-btn";
-      moreButton.textContent = "▼ More...";
+      moreButton.textContent = "▼";
       moreButton.addEventListener("click", function (event) {
         event.preventDefault();
         renderChildrenColumn(children, parentName, true);
@@ -146,6 +190,8 @@ var taxaTreeHierarchy = (function () {
       });
       panel.appendChild(moreButton);
     }
+
+    requestAnimationFrame(updateChildrenPanelMaxHeight);
   }
 
   function attachHierarchyClickHandlers() {
@@ -179,6 +225,7 @@ var taxaTreeHierarchy = (function () {
         if (childrenPanel) {
           childrenPanel.style.display = children.length > 0 ? "flex" : "none";
         }
+        requestAnimationFrame(updateChildrenPanelMaxHeight);
       }).catch(function () {
         renderAncestorsRow(name);
         renderChildrenColumn(children, name);
@@ -188,8 +235,20 @@ var taxaTreeHierarchy = (function () {
         if (childrenPanel) {
           childrenPanel.style.display = children.length > 0 ? "flex" : "none";
         }
+        requestAnimationFrame(updateChildrenPanelMaxHeight);
       });
     });
+  }
+
+  if (window) {
+    window.addEventListener("resize", updateChildrenPanelMaxHeight);
+    if (ResizeObserver) {
+      var timeEl = document.getElementById("time");
+      if (timeEl) {
+        var resizeObserver = new ResizeObserver(updateChildrenPanelMaxHeight);
+        resizeObserver.observe(timeEl);
+      }
+    }
   }
 
   function hideHierarchy() {

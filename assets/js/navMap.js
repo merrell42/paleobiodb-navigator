@@ -78,7 +78,8 @@ var navMap = (function () {
     mobileBreakpointWidth: 468,
     filtersWideLayoutMinHeight: 600,
     filtersSidebarWidth: 49,
-    filtersBottomGutter: 4,
+    filtersBottomGutter: 6,
+    filtersPanelLeftGutter: 6,
     prevalencePanelChrome: 121,
     helpModalLabelOffset: 78,
     typeaheadDropdownPadding: 21
@@ -296,9 +297,6 @@ var navMap = (function () {
     stackedCollectionPartial;
 
   /* via http://stackoverflow.com/questions/2901102/how-to-print-a-number-with-commas-as-thousands-separators-in-javascript */
-  function numberWithCommas(x) {
-    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  }
 
   // TODO: rework this so that only necesarry functions are returned
   return {
@@ -928,7 +926,7 @@ var navMap = (function () {
   },
 
   "refreshSvgBins": function(data, level) {
-    navMap.summarize(data);
+    filtersPanel.summarize(data, filters.exist, LAYOUT, getTimeScaleHeight);
 
     var g = d3.select("#svgBinHolder");
 
@@ -941,7 +939,7 @@ var navMap = (function () {
       .attr("id", function (d) { return "p" + d.cxi; })
       .attr("class", "binsHammer")
       .on("mouseout", function () {
-        navMap.setInfoSummary();
+        filtersPanel.setInfoSummary(filters.exist, LAYOUT, getTimeScaleHeight);
         timeScale.unhighlight();
       });
 
@@ -983,7 +981,7 @@ var navMap = (function () {
   },
 
   "refreshSvgCollections": function(data) {
-    navMap.summarize(data);
+    filtersPanel.summarize(data, filters.exist, LAYOUT, getTimeScaleHeight);
 
     var g = d3.select("#svgBinHolder");
 
@@ -995,7 +993,7 @@ var navMap = (function () {
     points.enter().append("circle")
       .attr("class", "binsHammer")
       .on("mouseout", function () {
-        navMap.setInfoSummary();
+        filtersPanel.setInfoSummary(filters.exist, LAYOUT, getTimeScaleHeight);
         timeScale.unhighlight();
       });
 
@@ -1036,7 +1034,7 @@ var navMap = (function () {
   },
 
   "drawBins": function(data, level, zoom) {
-    navMap.summarize(data);
+    filtersPanel.summarize(data, filters.exist, LAYOUT, getTimeScaleHeight);
 
     d3.selectAll(".clusters").remove();
 
@@ -1081,7 +1079,7 @@ var navMap = (function () {
         navMap.openBinModal(d);
       })
       .on("mouseout", function () {
-        navMap.setInfoSummary();
+        filtersPanel.setInfoSummary(filters.exist, LAYOUT, getTimeScaleHeight);
         timeScale.unhighlight();
       });
 
@@ -1092,7 +1090,7 @@ var navMap = (function () {
   },
 
   "drawCollections": function(data, level, zoom) {
-    navMap.summarize(data);
+    filtersPanel.summarize(data, filters.exist, LAYOUT, getTimeScaleHeight);
 
     var g = d3.select("#binHolder");
 
@@ -1181,7 +1179,7 @@ var navMap = (function () {
         navMap.openStackedCollectionModal(d);
       })
       .on("mouseout", function (d) {
-        navMap.setInfoSummary();
+        filtersPanel.setInfoSummary(filters.exist, LAYOUT, getTimeScaleHeight);
         timeScale.unhighlight();
       });
 
@@ -1196,7 +1194,7 @@ var navMap = (function () {
         timeScale.highlight(this);
       })
       .on("mouseout", function (d) {
-        navMap.setInfoSummary();
+        filtersPanel.setInfoSummary(filters.exist, LAYOUT, getTimeScaleHeight);
         timeScale.unhighlight();
       })
       .on("click", function (d) {
@@ -1229,7 +1227,7 @@ var navMap = (function () {
         navMap.openCollectionModal(d);
       })
       .on("mouseout", function (d) {
-        navMap.setInfoSummary();
+        filtersPanel.setInfoSummary(filters.exist, LAYOUT, getTimeScaleHeight);
         timeScale.unhighlight();
       });
 
@@ -1251,7 +1249,7 @@ var navMap = (function () {
         navMap.openCollectionModal(d);
       })
       .on("mouseout", function (d) {
-        navMap.setInfoSummary();
+        filtersPanel.setInfoSummary(filters.exist, LAYOUT, getTimeScaleHeight);
         timeScale.unhighlight();
       });
 
@@ -1765,7 +1763,7 @@ var navMap = (function () {
       url += '&research_group=' + rgFilter;
     }
     if (count > 0 && d3.select("#reconstructMap").style("display") === "none") {
-      d3.select(".filters").style("display", "block");
+      filtersPanel.updateDisplay(filters.exist, LAYOUT, getTimeScaleHeight);
     }
 
     return url;
@@ -1781,15 +1779,8 @@ var navMap = (function () {
         }
       }
     }
-    if (count > 0) {
-      d3.select(".filters").style("display", "block");
-      d3.select("#filterTitle").html("Filters");
-      return true;
-    } else {
-      d3.select(".filters").style("display", "none");
-      d3.select("#filterTitle").html("No filters selected");
-      return false;
-    }
+    filtersPanel.updateDisplay(filters.exist, LAYOUT, getTimeScaleHeight);
+    return count > 0;
   },
 
   "getIndex": function(data, term, property) {
@@ -1874,15 +1865,7 @@ var navMap = (function () {
       $("#getURL").addClass("active");
     }
 
-    d3.select("#infoContainer")
-      .style("bottom", function () {
-        if (window.innerWidth < LAYOUT.mobileBreakpointWidth) {
-          return LAYOUT.mobileInfoBottom + "px";
-        } else {
-          var height = parseInt(d3.select("#time").select("svg").style("height"));
-          return (height + LAYOUT.infoPanelGutter) + "px";
-        }
-      });
+    filtersPanel.updateLayout(LAYOUT, getTimeScaleHeight);
 
     d3.select(".prevalence-summary, .prevalence-row")
       .style("height", function () {
@@ -1890,22 +1873,6 @@ var navMap = (function () {
         return (height) + "px";
 
       });
-
-    if (window.innerHeight > LAYOUT.filtersWideLayoutMinHeight) {
-      d3.select(".filters")
-        .style("left", 0)
-        .style("top", "inherit")
-        .style("bottom", function () {
-          var height = parseInt(d3.select("#time").select("svg").style("height"));
-          return (height + LAYOUT.filtersBottomGutter) + "px";
-        });
-    } else {
-      d3.select(".filters")
-        .style("left", LAYOUT.filtersSidebarWidth + "px")
-        .style("top", 0)
-        .style("bottom", "inherit")
-    }
-
 
     d3.selectAll(".helpModalTimescaleLabel")
       .style("top", function () {
@@ -2093,20 +2060,7 @@ var navMap = (function () {
         break;
     }
 
-    if (window.innerHeight > LAYOUT.filtersWideLayoutMinHeight) {
-      d3.select(".filters")
-        .style("left", 0)
-        .style("top", "inherit")
-        .style("bottom", function () {
-          var height = parseInt(d3.select("#time").select("svg").style("height"));
-          return (height + LAYOUT.filtersBottomGutter) + "px";
-        });
-    } else {
-      d3.select(".filters")
-        .style("left", LAYOUT.filtersSidebarWidth + "px")
-        .style("top", 0)
-        .style("bottom", "inherit")
-    }
+    filtersPanel.updateDisplay(filters.exist, LAYOUT, getTimeScaleHeight);
   },
 
   "filterByTime": function(time) {
@@ -2610,28 +2564,6 @@ var navMap = (function () {
     }
 
     return params;
-  },
-
-  "summarize" : function(data) {
-    if (data.records.length > 0) {
-      if (typeof data.records[0].oid == 'string' && data.records[0].oid.substr(0, 3) === "col") {
-        navMap.totalCollections = numberWithCommas(data.records.length);
-      } else {
-        navMap.totalCollections = numberWithCommas(d3.sum(data.records, function (d) { return d.nco }));
-      }
-      navMap.totalOccurrences = numberWithCommas(d3.sum(data.records, function (d) { return d.noc }));
-    } else {
-      navMap.totalCollections = 0;
-      navMap.totalOccurrences = 0;
-    }
-
-    navMap.setInfoSummary();
-  },
-
-  "setInfoSummary" : function() {
-    d3.select(".info")
-      .style("display", "block")
-      .html("<strong>" + navMap.totalCollections + " total collections</strong><br>" + navMap.totalOccurrences + " total occurrences");
   },
 
   "filters": filters,

@@ -329,6 +329,7 @@ var reconstructMap = (function() {
             d3.select(".info")
               .html('')
               .style("display", "none");
+            navMap.checkFilters();
 
             reconstructMap.addToMap(reconstructed_clusters, interval, svg);
 

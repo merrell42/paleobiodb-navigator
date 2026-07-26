@@ -1022,11 +1022,13 @@ var paleo_nav = (function() {
           d3.select(".info")
             .html("Click a time interval to reconstruct collections and plates")
             .style("display", "block");
+          navMap.checkFilters();
         } else {
           alert("Please click a time interval below to build a reconstruction map");
           d3.select(".info")
             .html("Click a time interval to reconstruct collections and plates")
             .style("display", "block");
+          navMap.checkFilters();
         }
       }
 
