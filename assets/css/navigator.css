@@ -959,6 +959,13 @@ br {
 #universalSearchResult {
   position: relative;
   z-index: 1;
+  padding: 10px 0;
+}
+#universalSearchResult .autocompleteError {
+  padding: 0 25px;
+}
+#universalSearchResult .tt-suggestion {
+  padding: 3px 25px;
 }
 .universalSearch .form-control,
 .universalSearch .btn {
@@ -984,7 +991,7 @@ br {
 }
 
 .autocompleteTitle {
-  margin: 0 10px 5px;
+  margin: 0 25px 5px;
   padding: 7px 0;
   border-bottom: 1px solid #ccc;
 }
@@ -997,7 +1004,6 @@ br {
 }
 .suggestion {
   display: block;
-  cursor: pointer;
 }
 .suggestion:hover,
 .suggestion.is-active {

@@ -158,6 +158,14 @@ var navMap = (function () {
       : window.innerHeight / LAYOUT.timescaleHeightRatio;
   }
 
+  function updateFiltersPanelSummary(data) {
+    if (data) {
+      filtersPanel.summarize(data, filters.exist, LAYOUT, getTimeScaleHeight);
+    } else {
+      filtersPanel.setInfoSummary(filters.exist, LAYOUT, getTimeScaleHeight);
+    }
+  }
+
   function getSvgContainerSize() {
     var containerWidth = parseInt(d3.select("#graphics").style("width"), 10) - LAYOUT.graphicsWidthPadding,
       timeHeight = getTimeScaleHeight(),
@@ -295,8 +303,6 @@ var navMap = (function () {
     collectionModalPartial,
     occurrencePartial,
     stackedCollectionPartial;
-
-  /* via http://stackoverflow.com/questions/2901102/how-to-print-a-number-with-commas-as-thousands-separators-in-javascript */
 
   // TODO: rework this so that only necesarry functions are returned
   return {
@@ -2567,6 +2573,7 @@ var navMap = (function () {
   },
 
   "filters": filters,
+  "updateFiltersPanelSummary": updateFiltersPanelSummary,
     "totalOccurrences": totalOccurrences
 }
 }) ();

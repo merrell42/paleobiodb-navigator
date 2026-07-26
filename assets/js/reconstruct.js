@@ -325,11 +325,7 @@ var reconstructMap = (function() {
 
             d3.select("#reconstructMap").style("display", "block");
 
-            // Hide the info window
-            d3.select(".info")
-              .html('')
-              .style("display", "none");
-            navMap.checkFilters();
+            navMap.updateFiltersPanelSummary(data);
 
             reconstructMap.addToMap(reconstructed_clusters, interval, svg);
 
@@ -379,10 +375,8 @@ var reconstructMap = (function() {
             .style("display", "block");
           navMap.openBinModal(d);
         })
-        .on("mouseout", function(d) {
-          d3.select(".info")
-            .html("")
-            .style("display", "none");
+        .on("mouseout", function() {
+          navMap.updateFiltersPanelSummary();
         });
 
       // Remove reconstructing listener and loading GIF
