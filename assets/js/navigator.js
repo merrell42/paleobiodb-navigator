@@ -198,7 +198,75 @@ var paleo_nav = (function() {
         "group": "Gp"
       };
 
+      function isUniversalSearchControlKey(event) {
+        var key = event.key;
+        var code = event.keyCode;
+        return key === "ArrowDown" || code === 40 ||
+          key === "ArrowUp" || code === 38 ||
+          key === "Enter" || code === 13 ||
+          key === "Escape" || code === 27 ||
+          key === "Tab" || code === 9 ||
+          key === "Shift" || code === 16 ||
+          key === "Control" || code === 17 ||
+          key === "Alt" || code === 18 ||
+          key === "Meta";
+      }
+
+      function setUniversalSuggestionHighlight(index) {
+        var $suggestions = $("#universalSearchResult .suggestion");
+        $suggestions.removeClass("is-active");
+        if (index >= 0 && index < $suggestions.length) {
+          var $active = $suggestions.eq(index);
+          $active.addClass("is-active");
+          if ($active[0] && $active[0].scrollIntoView) {
+            $active[0].scrollIntoView({ block: "nearest" });
+          }
+        }
+      }
+
+      function selectUniversalSuggestion($suggestion) {
+        universalSearchRequestId += 1;
+        universalSearchSuppressed = false;
+        $("#universalSearchResult").css("display", "none");
+        universalSuggestionIndex = -1;
+        var rtype = $suggestion.attr("data-rtype");
+        switch (rtype) {
+          case "int":
+            timeScale.goTo($suggestion.attr("data-nam"));
+            navMap.filterByTime($suggestion.attr("data-nam"));
+            navMap.refresh("reset");
+            break;
+          case "str":
+            var rock = {"nam": $suggestion.attr("data-nam"), "type": $suggestion.attr("data-rnk")};
+            navMap.filterByStratigraphy(rock);
+            break;
+          case "prs":
+            var person = {"id": $suggestion.attr("data-oid"), "nam": $suggestion.attr("data-nam")};
+            navMap.filterByPerson(person);
+            document.activeElement.blur();
+            break;
+          case "txn":
+            navMap.filterByTaxon($suggestion.attr("data-oid") || $suggestion.attr("data-nam"));
+            break;
+          case "rgp":
+            navMap.filterByResearchGroup($suggestion.attr("data-nam"));
+            break;
+          case "cou":
+            navMap.filterByCountry($suggestion.attr("data-nam"), $suggestion.attr("data-cc2"));
+            break;
+          default: //do nothing
+        }
+        $("#universalAutocompleteInput").val("");
+      }
+
+      var universalSuggestionIndex = -1;
+      var universalSearchRequestId = 0;
+      var universalSearchSuppressed = false;
+
       function renderUniversalAutocomplete(combinedResult, commonTaxa, localTaxa, autocompleteInput) {
+        if (universalSearchSuppressed) {
+          return;
+        }
         var htmlResult = "";
         var result = combinedResult || { records: [] };
 
@@ -301,58 +369,93 @@ var paleo_nav = (function() {
         }
 
         $("#universalSearchResult").html(htmlResult);
-        $("#universalSearchResult").css("display","block");
+        $("#universalSearchResult").css("display", "block");
+        universalSuggestionIndex = -1;
         $(".suggestion").on("click", function(event) {
           event.preventDefault();
-          $("#universalSearchResult").css("display","none");
-          var rtype = $(this).attr("data-rtype");
-          switch (rtype) {
-            case "int":
-              timeScale.goTo($(this).attr("data-nam"));
-              navMap.filterByTime($(this).attr("data-nam"));
-              navMap.refresh("reset");
-              break;
-            case "str":
-              var rock = {"nam": $(this).attr("data-nam"), "type": $(this).attr("data-rnk")}
-              navMap.filterByStratigraphy(rock);
-              break;
-            case "prs":
-              var person = {"id": $(this).attr("data-oid") ,"nam": $(this).attr("data-nam")}
-              navMap.filterByPerson(person);
-              document.activeElement.blur();
-              break;
-            case "txn":
-              navMap.filterByTaxon($(this).attr("data-oid") || $(this).attr("data-nam"));
-              break;
-            case "rgp":
-              navMap.filterByResearchGroup($(this).attr("data-nam"));
-              break;
-            case "cou":
-              navMap.filterByCountry($(this).attr("data-nam"), $(this).attr("data-cc2"));
-              break;
-            default: //do nothing
-          }
-          $("#universalAutocompleteInput").val("");
+          selectUniversalSuggestion($(this));
+        });
+        $(".suggestion").on("mouseenter", function() {
+          universalSuggestionIndex = $("#universalSearchResult .suggestion").index(this);
+          setUniversalSuggestionHighlight(universalSuggestionIndex);
         });
       }
 
       // new "combined/auto"-based universal autocomplete code
-      var universalAutocomplete = $("#universalAutocompleteInput").on('keyup', function(event) {
-        var autocompleteInput = $("#universalAutocompleteInput").val();
-        if (autocompleteInput.length < 3) {
-          $("#universalSearchResult").html("");
-          $("#universalSearchResult").css("display","none");
+      var universalAutocomplete = $("#universalAutocompleteInput").on("keydown", function(event) {
+        if (event.key === "Escape" || event.keyCode === 27) {
+          if ($("#universalSearchResult").css("display") !== "none") {
+            event.preventDefault();
+            universalSearchSuppressed = true;
+            universalSearchRequestId += 1;
+            $("#universalSearchResult").css("display", "none");
+            universalSuggestionIndex = -1;
+          }
           return;
         }
+
+        var $suggestions = $("#universalSearchResult .suggestion");
+        var resultsVisible = $("#universalSearchResult").css("display") !== "none";
+
+        if (resultsVisible && $suggestions.length) {
+          if (event.key === "ArrowDown" || event.keyCode === 40) {
+            event.preventDefault();
+            universalSuggestionIndex = universalSuggestionIndex < $suggestions.length - 1
+              ? universalSuggestionIndex + 1
+              : 0;
+            setUniversalSuggestionHighlight(universalSuggestionIndex);
+            return;
+          }
+          if (event.key === "ArrowUp" || event.keyCode === 38) {
+            event.preventDefault();
+            universalSuggestionIndex = universalSuggestionIndex > 0
+              ? universalSuggestionIndex - 1
+              : $suggestions.length - 1;
+            setUniversalSuggestionHighlight(universalSuggestionIndex);
+            return;
+          }
+          if (event.key === "Enter" || event.keyCode === 13) {
+            event.preventDefault();
+            var index = universalSuggestionIndex >= 0 ? universalSuggestionIndex : 0;
+            selectUniversalSuggestion($suggestions.eq(index));
+            return;
+          }
+        }
+      }).on("keyup", function(event) {
+        if (isUniversalSearchControlKey(event)) {
+          return;
+        }
+
+        universalSearchSuppressed = false;
+        var autocompleteInput = $("#universalAutocompleteInput").val();
+        if (autocompleteInput.length < 3) {
+          universalSearchRequestId += 1;
+          $("#universalSearchResult").html("");
+          $("#universalSearchResult").css("display", "none");
+          universalSuggestionIndex = -1;
+          return;
+        }
+
+        var requestId = universalSearchRequestId + 1;
+        universalSearchRequestId = requestId;
         d3.json(dataUrl + dataService + '/combined/auto.json?type=nav&name=' +
           encodeURIComponent(autocompleteInput), function(error, result) {
+          if (requestId !== universalSearchRequestId) {
+            return;
+          }
           if (error) {
             result = { records: [] };
           }
           d3.json(dataUrl + dataService + '/taxa/list.json?taxon_name=' +
             encodeURIComponent(autocompleteInput) + '&common=EN&limit=5', function(err2, commonData) {
+            if (requestId !== universalSearchRequestId) {
+              return;
+            }
             var commonTaxa = (commonData && commonData.records) ? commonData.records : [];
             taxaTree.load().then(function() {
+              if (requestId !== universalSearchRequestId) {
+                return;
+              }
               renderUniversalAutocomplete(
                 result,
                 commonTaxa,
@@ -360,6 +463,9 @@ var paleo_nav = (function() {
                 autocompleteInput
               );
             }).catch(function() {
+              if (requestId !== universalSearchRequestId) {
+                return;
+              }
               renderUniversalAutocomplete(result, commonTaxa, [], autocompleteInput);
             });
           });

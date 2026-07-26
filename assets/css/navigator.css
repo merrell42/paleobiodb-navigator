@@ -955,9 +955,14 @@ br {
   display: block;
   cursor: pointer;
 }
-.suggestion:hover {
+.suggestion:hover,
+.suggestion.is-active {
   background-color: rgb(66, 139, 202);
   color: white;
+}
+.suggestion:hover .taxaRank,
+.suggestion.is-active .taxaRank {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .navbar-default .navbar-toggle:focus, .navbar-default .navbar-toggle:hover {
