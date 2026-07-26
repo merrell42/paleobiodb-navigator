@@ -803,6 +803,7 @@ td:first-child {
 }
 #reconstructMapText {
   text-align: center;
+  color: #fff;
 }
 #interval {
   display: inline;
@@ -814,6 +815,7 @@ td:first-child {
   margin: 0;
 }
 #mapSwitch {
+  color: #fff;
   display: block;
   width: fit-content;
   white-space: nowrap;
@@ -826,15 +828,16 @@ td:first-child {
   transform: translateX(-50%);
   z-index: 10;
   width: fit-content;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 #reconstructMapRefContainer {
    position: relative;
    width: fit-content;
 }
 #reconstructMapReference {
-  background-color: rgba(255,255,255);
+  background-color: rgb(160 190 208);
   padding: 7px 24px 7px 16px;
-  border: 1px solid #ccc;
+  border: 1px solid #5d5d5d;
   font-size:0.8em;
   width: fit-content;
   box-sizing: border-box;
