@@ -975,6 +975,7 @@ br {
   position: relative;
   z-index: 1;
   padding: 10px 0;
+  width: 368px;
 }
 #universalSearchResult .autocompleteError {
   padding: 0 25px;
