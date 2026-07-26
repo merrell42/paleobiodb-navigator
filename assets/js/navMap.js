@@ -1965,8 +1965,13 @@ var navMap = (function () {
           break;
 
         case "taxon":
-          parent.remove();
+          if (parent.attr("id") === "taxon") {
+            parent.style("display", "none").html("").attr("data-id", null);
+          } else {
+            parent.remove();
+          }
           navMap.removeTaxonFilters([id]);
+          navMap.renderTaxonFilterList();
           break;
 
         case "stratFilter":
@@ -1988,6 +1993,62 @@ var navMap = (function () {
       }
 
     });
+  },
+
+  "clearTaxonFilters": function(refresh) {
+    if (navMap.filters.taxa.length > 0) {
+      var existingIds = navMap.filters.taxa.map(function (d) { return d.id; });
+      navMap.removeTaxonFilters(existingIds);
+      navMap.renderTaxonFilterList();
+    }
+
+    if (taxaTree && taxaTree.showRootHierarchy) {
+      taxaTree.showRootHierarchy();
+    }
+
+    if (refresh !== false) {
+      paleo_nav.getPrevalence();
+      if (d3.select("#reconstructMap").style("display") === "block") {
+        reconstructMap.rotate(navMap.filters.selectedInterval);
+      } else {
+        navMap.refresh("reset");
+      }
+    }
+  },
+
+  "renderTaxonFilterList": function() {
+    d3.selectAll(".filters > .filter.taxon-filter-extra").remove();
+
+    if (navMap.filters.taxa.length < 1) {
+      d3.select("#taxon").style("display", "none").html("").attr("data-id", null);
+      d3.select(".taxa").style("box-shadow", "");
+      return;
+    }
+
+    navMap.filters.taxa.forEach(function (taxon, i) {
+      var label = taxon.name + '<button type="button" class="close removeFilter" aria-hidden="true">&times;</button>';
+      if (i === 0) {
+        var taxonNode = d3.select("#taxon");
+        if (taxonNode.empty()) {
+          taxonNode = d3.select(".filters").insert("div", "#stratFilter")
+            .attr("id", "taxon")
+            .attr("class", "filter");
+        }
+        taxonNode
+          .attr("data-id", taxon.id)
+          .style("display", "block")
+          .html(label);
+      } else {
+        d3.select(".filters")
+          .append("div")
+          .attr("class", "filter taxon-filter-extra")
+          .attr("data-id", taxon.id)
+          .style("display", "block")
+          .html(label);
+      }
+    });
+
+    d3.select(".taxa").style("box-shadow", "inset 3px 0 0 #ff992c");
   },
 
   "updateFilterList": function(type, id) {
@@ -2021,23 +2082,7 @@ var navMap = (function () {
         navMap.refreshFilterHandlers();
         break;
       case "taxon":
-        var index;
-        // Find the index of the taxon being added
-        filters.taxa.forEach(function (d, i) {
-          if (d.id === id) {
-            index = i;
-          }
-        });
-
-        d3.select(".filters")
-          .append("div")
-          .attr("id", "taxon")
-          .attr("class", "filter")
-          .attr("data-id", id)
-          .style("display", "block")
-          .html(filters.taxa[index].name + '<button type="button" class="close removeFilter" aria-hidden="true">&times;</button>');
-
-        d3.select(".taxa").style("box-shadow", "inset 3px 0 0 #ff992c");
+        navMap.renderTaxonFilterList();
         navMap.refreshFilterHandlers();
         break;
       case "stratigraphy":
@@ -2081,10 +2126,19 @@ var navMap = (function () {
 
   "removeTaxonFilters": function(ids) {
     // Remove the filters from the interface
-    d3.selectAll(".filters > .filter").each(function (d) {
-      var id = parseInt(d3.select(this).attr("data-id"));
+    d3.selectAll(".filters > .filter").each(function () {
+      var node = d3.select(this);
+      var dataId = node.attr("data-id");
+      if (!dataId) {
+        return;
+      }
+      var id = parseInt(dataId, 10);
       if (ids.indexOf(id) > -1) {
-        d3.select(this).remove();
+        if (node.attr("id") === "taxon") {
+          node.style("display", "none").html("").attr("data-id", null);
+        } else {
+          node.remove();
+        }
       }
     });
 
@@ -2107,9 +2161,20 @@ var navMap = (function () {
   },
 
 
-  "filterByTaxon": function(name, preventRefresh) {
+  "filterByTaxon": function(name, preventRefresh, replaceExisting) {
     if (!name) {
       var name = $("#taxonInput").val();
+    }
+
+    var rootTaxon = (typeof taxaTree !== "undefined" && taxaTree.ROOT_TAXON)
+      ? taxaTree.ROOT_TAXON
+      : "Life";
+    if (name === rootTaxon) {
+      navMap.clearTaxonFilters(!preventRefresh);
+      if (!preventRefresh && typeof taxaBrowser !== "undefined") {
+        taxaBrowser.goToTaxon(name);
+      }
+      return;
     }
 
     taxaBrowser.lookupTaxon(name, "", true, function (err, data) {
@@ -2126,23 +2191,30 @@ var navMap = (function () {
             "rsq": data.records[0].rsq
           };
 
+          if (replaceExisting && navMap.filters.taxa.length > 0) {
+            var existingIds = navMap.filters.taxa.map(function (d) { return d.id; });
+            navMap.removeTaxonFilters(existingIds);
+          }
+
           // Check if we have already applied this taxon filter
           for (var i = 0; i < navMap.filters.taxa.length; i++) {
-            if (navMap.filters.taxa[i].id === taxon.name) {
+            if (navMap.filters.taxa[i].id === taxon.id) {
               // If so, ignore the request to add another taxon filter
               return;
             }
           }
 
           var toRemove = [];
-          for (var i = 0; i < navMap.filters.taxa.length; i++) {
-            // Check if we are filtering by a child of an existing filter
-            if (taxon.lsq >= navMap.filters.taxa[i].lsq && taxon.rsq <= navMap.filters.taxa[i].rsq) {
-              toRemove.push(navMap.filters.taxa[i].id);
-            }
-            // Check if we are filtering by a parent of an existing filter
-            if (taxon.lsq <= navMap.filters.taxa[i].lsq && taxon.rsq >= navMap.filters.taxa[i].rsq) {
-              toRemove.push(navMap.filters.taxa[i].id);
+          if (!replaceExisting) {
+            for (var j = 0; j < navMap.filters.taxa.length; j++) {
+              // Check if we are filtering by a child of an existing filter
+              if (taxon.lsq >= navMap.filters.taxa[j].lsq && taxon.rsq <= navMap.filters.taxa[j].rsq) {
+                toRemove.push(navMap.filters.taxa[j].id);
+              }
+              // Check if we are filtering by a parent of an existing filter
+              if (taxon.lsq <= navMap.filters.taxa[j].lsq && taxon.rsq >= navMap.filters.taxa[j].rsq) {
+                toRemove.push(navMap.filters.taxa[j].id);
+              }
             }
           }
           navMap.removeTaxonFilters(toRemove);

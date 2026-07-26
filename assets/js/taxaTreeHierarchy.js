@@ -133,7 +133,7 @@ var taxaTreeHierarchy = (function () {
       event.preventDefault();
       var taxonName = $(this).attr("data-taxon-name");
       if (taxonName && typeof navMap !== "undefined") {
-        navMap.filterByTaxon(taxonName);
+        navMap.filterByTaxon(taxonName, false, true);
       }
     });
   }
