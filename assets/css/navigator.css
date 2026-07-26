@@ -518,6 +518,27 @@ nav {
   pointer-events: none;
   --local-hierarchy-column-width: 109px;
   --local-hierarchy-gap: 4px;
+  --local-hierarchy-hover-bg: #e8f2fc;
+  --local-hierarchy-selected-bg: #cce5ff;
+  --local-hierarchy-selected-border: #a8cce8;
+}
+.local-hierarchy-ancestors-panel .local-hierarchy-btn,
+.local-hierarchy-children-panel .local-hierarchy-btn {
+  cursor: default;
+  outline: none;
+  box-shadow: none;
+}
+.local-hierarchy-ancestors-panel .local-hierarchy-btn:hover,
+.local-hierarchy-ancestors-panel .local-hierarchy-btn:focus,
+.local-hierarchy-ancestors-panel .local-hierarchy-btn:active,
+.local-hierarchy-children-panel .local-hierarchy-btn:hover,
+.local-hierarchy-children-panel .local-hierarchy-btn:focus,
+.local-hierarchy-children-panel .local-hierarchy-btn:active {
+  color: #333;
+  background-color: var(--local-hierarchy-hover-bg);
+  border-color: #ccc;
+  outline: none;
+  box-shadow: none;
 }
 .local-hierarchy-ancestors-panel {
   pointer-events: auto;
@@ -543,8 +564,8 @@ nav {
   width: var(--local-hierarchy-column-width);
   text-align: center;
   color: #333;
-  background-color: #fff;
-  border: 1px solid #ccc;
+  background-color: var(--local-hierarchy-selected-bg);
+  border: 1px solid var(--local-hierarchy-selected-border);
   border-radius: 3px;
   flex-shrink: 0;
   opacity: 1;
