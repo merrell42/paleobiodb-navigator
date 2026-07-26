@@ -910,7 +910,14 @@ br {
   z-index: 5;
   min-width: 400px;
   max-width: 430px;
-  margin-left: 60px;
+  margin: 0;
+  padding: 0;
+}
+.universalSearch.col-sm-4 {
+  width: auto;
+  float: none;
+  padding-left: 0;
+  padding-right: 0;
 }
 #universalSearchResult {
   position: relative;
@@ -996,7 +1003,29 @@ br {
 }
 
 .navbar-nav {
-  margin-left:15px;
+  margin-left: 15px;
+}
+
+.navbar-collapse.collapse {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+@media (min-width: 480px) {
+  .navbar-collapse .navbar-nav.navbar-right:last-child {
+    margin-right: 0;
+  }
+}
+
+.navbar-nav.navbar-right {
+  margin-left: 0;
+  margin-right: 0;
+  padding-right: 0;
+}
+
+.navbar-nav.navbar-right > li {
+  margin: 0;
+  padding: 0;
 }
 
 .navbar-right {
