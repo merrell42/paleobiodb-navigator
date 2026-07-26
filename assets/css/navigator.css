@@ -681,8 +681,8 @@ nav {
   margin-top:3px;
 }
 .filter > button {
-  float:left;
-  margin-right:5px;
+  float: right;
+  margin-left: 5px;
 }
 
 .customControl {
