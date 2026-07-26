@@ -2,6 +2,8 @@
  * Navigation-tree UI: clickable ancestor and child buttons for the local taxon tree.
  */
 var taxaTreeHierarchy = (function () {
+  var CHILDREN_DISPLAY_LIMIT = 10;
+
   function getOccurrencePercentValue(occurrences, total) {
     if (occurrences == null || total == null || total === 0) {
       return null;
@@ -115,7 +117,7 @@ var taxaTreeHierarchy = (function () {
     });
   }
 
-  function renderChildrenColumn(children, parentName) {
+  function renderChildrenColumn(children, parentName, expanded) {
     var panel = document.getElementById("localTaxonChildrenPanel");
     if (!panel) {
       return;
@@ -123,9 +125,27 @@ var taxaTreeHierarchy = (function () {
 
     var parentTotalOccurrences = taxaTree.getTotalOccurrences(parentName);
     panel.innerHTML = "";
-    children.forEach(function (taxonName) {
+
+    var visibleChildren = expanded || children.length <= CHILDREN_DISPLAY_LIMIT
+      ? children
+      : children.slice(0, CHILDREN_DISPLAY_LIMIT);
+
+    visibleChildren.forEach(function (taxonName) {
       panel.appendChild(createTaxonButton(taxonName, true, undefined, parentTotalOccurrences));
     });
+
+    if (!expanded && children.length > CHILDREN_DISPLAY_LIMIT) {
+      var moreButton = document.createElement("button");
+      moreButton.type = "button";
+      moreButton.className = "btn btn-default btn-xs local-hierarchy-more-btn";
+      moreButton.textContent = "▼ More...";
+      moreButton.addEventListener("click", function (event) {
+        event.preventDefault();
+        renderChildrenColumn(children, parentName, true);
+        attachHierarchyClickHandlers();
+      });
+      panel.appendChild(moreButton);
+    }
   }
 
   function attachHierarchyClickHandlers() {

@@ -616,6 +616,27 @@ nav {
   height: 28px;
   margin: 0 auto 2px;
 }
+.local-hierarchy-children-panel .local-hierarchy-more-btn {
+  white-space: normal;
+  text-align: center;
+  width: 100%;
+  padding: 2px 6px;
+  line-height: 1.25;
+  font-size: 10px;
+  background-color: #fff;
+  cursor: default;
+  outline: none;
+  box-shadow: none;
+}
+.local-hierarchy-children-panel .local-hierarchy-more-btn:hover,
+.local-hierarchy-children-panel .local-hierarchy-more-btn:focus,
+.local-hierarchy-children-panel .local-hierarchy-more-btn:active {
+  color: #333;
+  background-color: var(--local-hierarchy-hover-bg);
+  border-color: #ccc;
+  outline: none;
+  box-shadow: none;
+}
 .info {
   display: none;
   padding: 10px;
