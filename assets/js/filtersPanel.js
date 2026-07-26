@@ -2,8 +2,8 @@
  * Bottom-left filters panel: filter chips, summary info, and layout.
  */
 var filtersPanel = (function () {
-  var totalCollections = 0;
-  var totalOccurrences = 0;
+  var collections = 0;
+  var occurrences = 0;
 
   /* via http://stackoverflow.com/questions/2901102/how-to-print-a-number-with-commas-as-thousands-separators-in-javascript */
   function numberWithCommas(x) {
@@ -58,21 +58,21 @@ var filtersPanel = (function () {
   function setInfoSummary(filtersExist, layout, getTimeScaleHeight) {
     d3.select(".filters .info")
       .style("display", "block")
-      .html("<strong>" + totalCollections + " collections</strong><br>" + totalOccurrences + " occurrences");
+      .html("<strong>" + collections + " collections</strong><br>" + occurrences + " occurrences");
     updateDisplay(filtersExist, layout, getTimeScaleHeight);
   }
 
   function summarize(data, filtersExist, layout, getTimeScaleHeight) {
     if (data.records.length > 0) {
       if (typeof data.records[0].oid == "string" && data.records[0].oid.substr(0, 3) === "col") {
-        totalCollections = numberWithCommas(data.records.length);
+        collections = numberWithCommas(data.records.length);
       } else {
-        totalCollections = numberWithCommas(d3.sum(data.records, function (d) { return d.nco; }));
+        collections = numberWithCommas(d3.sum(data.records, function (d) { return d.nco; }));
       }
-      totalOccurrences = numberWithCommas(d3.sum(data.records, function (d) { return d.noc; }));
+      occurrences = numberWithCommas(d3.sum(data.records, function (d) { return d.noc; }));
     } else {
-      totalCollections = 0;
-      totalOccurrences = 0;
+      collections = 0;
+      occurrences = 0;
     }
 
     setInfoSummary(filtersExist, layout, getTimeScaleHeight);
