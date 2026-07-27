@@ -282,6 +282,7 @@ var paleo_nav = (function() {
         universalSearchRequestId += 1;
         $("#universalSearchResult").css("display", "none");
         universalSuggestionIndex = -1;
+        setUniversalSuggestionHighlight(-1);
         $("#universalAutocompleteInput").blur();
       }
 
@@ -546,6 +547,11 @@ var paleo_nav = (function() {
 
       $("#universalSearchResult").on("mousedown", function(event) {
         event.preventDefault();
+      });
+
+      $("#universalSearchResult").on("mouseleave", function() {
+        universalSuggestionIndex = -1;
+        setUniversalSuggestionHighlight(-1);
       });
 
       $(document).on("mousedown", function(event) {

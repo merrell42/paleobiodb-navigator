@@ -976,12 +976,24 @@ br {
   z-index: 1;
   padding: 10px 0;
   width: 368px;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  cursor: default;
 }
 #universalSearchResult .autocompleteError {
   padding: 0 25px;
 }
 #universalSearchResult .tt-suggestion {
   padding: 3px 25px;
+}
+#universalSearchResult .suggestion,
+#universalSearchResult .suggestion * {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 .universalSearch .form-control,
 .universalSearch .btn {
