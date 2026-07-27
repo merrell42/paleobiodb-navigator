@@ -602,7 +602,6 @@ nav {
   font-size: 12px;
   line-height: 1.5;
   padding: 1px 5px;
-  transition: transform 600ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .local-hierarchy-current-label {
   display: block;
@@ -641,16 +640,6 @@ nav {
   min-height: 0;
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
-}
-.local-hierarchy-children-panel.local-hierarchy-children-revealing {
-  overflow: hidden;
-  gap: 0;
-}
-.local-hierarchy-children-inner {
-  display: flex;
-  flex-direction: column;
-  gap: var(--local-hierarchy-gap);
-  width: 100%;
 }
 .local-hierarchy-children-panel::-webkit-scrollbar {
   width: 4px;
@@ -711,19 +700,6 @@ nav {
   border-color: #ccc;
   outline: none;
   box-shadow: none;
-}
-.localTaxonHierarchy.local-hierarchy-animating {
-  pointer-events: none;
-}
-.local-hierarchy-anim-clone {
-  overflow: hidden;
-  box-shadow: none;
-  outline: none;
-}
-.local-hierarchy-anim-clone .local-hierarchy-icon {
-  display: block;
-  height: 28px;
-  margin: 0 auto 2px;
 }
 .filter {
   display: none;
