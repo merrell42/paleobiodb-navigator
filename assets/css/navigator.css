@@ -983,10 +983,10 @@ br {
   cursor: default;
 }
 #universalSearchResult .autocompleteError {
-  padding: 0 25px;
+  padding: 0 18px;
 }
 #universalSearchResult .tt-suggestion {
-  padding: 3px 25px;
+  padding: 3px 18px;
 }
 #universalSearchResult .suggestion,
 #universalSearchResult .suggestion * {
@@ -998,7 +998,7 @@ br {
 .universalSearch .form-control,
 .universalSearch .btn {
   height: 28px;
-  padding: 3px 10px;
+  padding: 3px 18px;
   font-size: 0.85em;
 }
 .universalSearchForm {
@@ -1019,7 +1019,7 @@ br {
 }
 
 .autocompleteTitle {
-  margin: 0 25px 5px;
+  margin: 0 18px 5px;
   padding: 7px 0;
   border-bottom: 1px solid #ccc;
 }
