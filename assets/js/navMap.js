@@ -2155,7 +2155,7 @@ var navMap = (function () {
   },
 
 
-  "removeTaxonFilters": function(ids) {
+  "removeTaxonFilters": function(ids, skipHierarchyUpdate) {
     // Remove the filters from the interface
     d3.selectAll(".filters > .filter").each(function () {
       var node = d3.select(this);
@@ -2183,7 +2183,7 @@ var navMap = (function () {
     // Check if there are any others left
     if (navMap.filters.taxa.length < 1) {
       navMap.filters.exist["taxon"] = false;
-      if (taxaTree && taxaTree.showRootHierarchy) {
+      if (!skipHierarchyUpdate && taxaTree && taxaTree.showRootHierarchy) {
         taxaTree.showRootHierarchy();
       }
     }
@@ -2233,7 +2233,7 @@ var navMap = (function () {
 
           if (replaceExisting && navMap.filters.taxa.length > 0) {
             var existingIds = navMap.filters.taxa.map(function (d) { return d.id; });
-            navMap.removeTaxonFilters(existingIds);
+            navMap.removeTaxonFilters(existingIds, true);
           }
 
           var toRemove = [];
@@ -2249,7 +2249,7 @@ var navMap = (function () {
               }
             }
           }
-          navMap.removeTaxonFilters(toRemove);
+          navMap.removeTaxonFilters(toRemove, true);
 
           // Update the taxon browser unless it's explicitly blocked
           if (!preventRefresh) {
