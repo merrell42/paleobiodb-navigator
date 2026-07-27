@@ -379,14 +379,6 @@ var timeScale = (function() {
     }
 
     highlight(d.name);
-    // Update the map filter info
-    navMap.filters.selectedInterval.nam = d.name;
-    navMap.filters.selectedInterval.mid = d.mid;
-    navMap.filters.selectedInterval.col = d.color;
-    navMap.filters.selectedInterval.oid = d.id;
-    navMap.filters.exist.selectedInterval = true;
-
-    navMap.updateFilterList("selectedInterval");
 
     if (reconstructMap.visible) {
       var requestYear = parseInt((d.early_age + d.late_age) / 2);
@@ -394,11 +386,20 @@ var timeScale = (function() {
         return alert("Please select a period or finer interval");
       } else if (requestYear > 550) {
         return alert("Please select an interval younger than 600 MA");
-      } else {
-        navMap.refresh("reset");
-        reconstructMap.rotate(d);
       }
+
+      filtersPanel.recordFilterChange();
+      navMap.filters.selectedInterval.nam = d.name;
+      navMap.filters.selectedInterval.mid = d.mid;
+      navMap.filters.selectedInterval.col = d.color;
+      navMap.filters.selectedInterval.oid = d.id;
+      navMap.filters.exist.selectedInterval = true;
+
+      navMap.updateFilterList("selectedInterval");
+      navMap.refresh("reset");
+      reconstructMap.rotate(d, true);
     } else {
+      navMap.filterByTime(d.name);
       navMap.refresh("reset");
     }
   }

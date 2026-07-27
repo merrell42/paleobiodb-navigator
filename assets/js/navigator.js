@@ -988,6 +988,7 @@ var paleo_nav = (function() {
     },
 
     "launch": function() {
+      filtersPanel.enableHistory();
       d3.select("#graphicRow").style("visibility", "visible");
       d3.select("#waiting").style("display", "none");
       navMap.resizeSvgMap();

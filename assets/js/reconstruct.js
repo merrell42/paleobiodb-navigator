@@ -165,7 +165,7 @@ var reconstructMap = (function() {
       });
     
     },
-    "rotate": function(interval) {
+    "rotate": function(interval, skipFilterUpdate) {
       var name = (interval.nam) ? interval.nam : interval.name;
       // If nothing has changed since the last reconstruct, do nothing
       // if (name === reconstructMap.currentReconstruction.name && navMap.filters.personFilter.name === reconstructMap.currentReconstruction.person && navMap.filters.stratigraphy.name === reconstructMap.currentReconstruction.stratigraphy) {
@@ -195,7 +195,9 @@ var reconstructMap = (function() {
       //   }
       // }
       
-      navMap.filterByTime(name);
+      if (!skipFilterUpdate) {
+        navMap.filterByTime(name);
+      }
       
       // Determine the URL necessary to fetch the rotated summary clusters. If the URL
       // hasn't changed since the last reconstruction, do nothing.

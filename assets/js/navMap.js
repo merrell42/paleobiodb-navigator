@@ -166,6 +166,67 @@ var navMap = (function () {
     }
   }
 
+  function clearFiltersUI() {
+    d3.select("#selectedInterval").style("display", "none").html("");
+    d3.select("#personFilter").style("display", "none").html("");
+    d3.select("#researchGroup").style("display", "none").html("");
+    d3.select("#countryFilter").style("display", "none").html("");
+    d3.select("#stratFilter").style("display", "none").html("");
+    d3.selectAll(".filters > .filter.taxon-filter-extra").remove();
+    d3.select("#taxon").style("display", "none").html("").attr("data-id", null);
+    d3.select(".time").style("box-shadow", "");
+    d3.select(".userFilter").style("box-shadow", "");
+    d3.select(".taxa").style("box-shadow", "");
+    timeScale.unhighlight();
+  }
+
+  function rebuildFiltersUI() {
+    clearFiltersUI();
+
+    if (filters.exist.selectedInterval) {
+      d3.select("#selectedInterval")
+        .style("display", "block")
+        .html(filters.selectedInterval.nam + '<button type="button" class="close removeFilter" aria-hidden="true">&times;</button>');
+      d3.select(".time").style("box-shadow", "inset 3px 0 0 #ff992c");
+      if (filters.selectedInterval.nam) {
+        timeScale.highlight(filters.selectedInterval.nam);
+      }
+    }
+
+    if (filters.exist.personFilter) {
+      d3.select("#personFilter")
+        .style("display", "block")
+        .html(filters.personFilter.name + '<button type="button" class="close removeFilter" aria-hidden="true">&times;</button>');
+      d3.select(".userFilter").style("box-shadow", "inset 3px 0 0 #ff992c");
+    }
+
+    if (filters.exist.researchGroup) {
+      d3.select("#researchGroup")
+        .style("display", "block")
+        .html(filters.researchGroup.name + '<button type="button" class="close removeFilter" aria-hidden="true">&times;</button>');
+      d3.select(".rgFilter").style("box-shadow", "inset 3px 0 0 #ff992c");
+    }
+
+    if (filters.exist.country) {
+      d3.select("#countryFilter")
+        .style("display", "block")
+        .html(filters.country.name + '<button type="button" class="close removeFilter" aria-hidden="true">&times;</button>');
+    }
+
+    if (filters.exist.stratigraphy) {
+      d3.select("#stratFilter")
+        .style("display", "block")
+        .html(filters.stratigraphy.name + ' ' + filters.stratigraphy.rank + '<button type="button" class="close removeFilter" aria-hidden="true">&times;</button>');
+    }
+
+    if (filters.exist.taxon) {
+      navMap.renderTaxonFilterList();
+    }
+
+    navMap.refreshFilterHandlers();
+    filtersPanel.updateDisplay(filters.exist, LAYOUT, getTimeScaleHeight);
+  }
+
   function getSvgContainerSize() {
     var containerWidth = parseInt(d3.select("#graphics").style("width"), 10) - LAYOUT.graphicsWidthPadding,
       timeHeight = getTimeScaleHeight(),
@@ -307,6 +368,8 @@ var navMap = (function () {
   // TODO: rework this so that only necesarry functions are returned
   return {
     "init": function (callback) {
+      filtersPanel.init();
+
       // Init the leaflet map
       map = new L.Map('map', {
         center: new L.LatLng(7, 0),
@@ -1892,6 +1955,8 @@ var navMap = (function () {
   "refreshFilterHandlers": function() {
 
     d3.selectAll(".removeFilter").on("click", function () {
+      filtersPanel.recordFilterChange();
+
       var parent = d3.select(this).node().parentNode;
       parent = d3.select(parent);
       var type = parent.attr("id");
@@ -1973,6 +2038,7 @@ var navMap = (function () {
 
   "clearTaxonFilters": function(refresh) {
     if (navMap.filters.taxa.length > 0) {
+      filtersPanel.recordFilterChange();
       var existingIds = navMap.filters.taxa.map(function (d) { return d.id; });
       navMap.removeTaxonFilters(existingIds);
       navMap.renderTaxonFilterList();
@@ -2073,6 +2139,8 @@ var navMap = (function () {
   },
 
   "filterByTime": function(time) {
+    filtersPanel.recordFilterChange();
+
     // accepts a named time interval
     var d = d3.selectAll('rect').filter(function (e) {
       return e.name === time;
@@ -2154,17 +2222,18 @@ var navMap = (function () {
             "rsq": data.records[0].rsq
           };
 
-          if (replaceExisting && navMap.filters.taxa.length > 0) {
-            var existingIds = navMap.filters.taxa.map(function (d) { return d.id; });
-            navMap.removeTaxonFilters(existingIds);
-          }
-
-          // Check if we have already applied this taxon filter
           for (var i = 0; i < navMap.filters.taxa.length; i++) {
             if (navMap.filters.taxa[i].id === taxon.id) {
               // If so, ignore the request to add another taxon filter
               return;
             }
+          }
+
+          filtersPanel.recordFilterChange();
+
+          if (replaceExisting && navMap.filters.taxa.length > 0) {
+            var existingIds = navMap.filters.taxa.map(function (d) { return d.id; });
+            navMap.removeTaxonFilters(existingIds);
           }
 
           var toRemove = [];
@@ -2210,6 +2279,8 @@ var navMap = (function () {
   "filterByPerson": function(person, norefresh) {
     // person is = {"id": , "nam": "M. Uhen" }
     if (person) {
+      filtersPanel.recordFilterChange();
+
       // Update map filters
       filters.exist.personFilter = true;
       filters.personFilter.id = (person.oid) ? person.oid : person.id;
@@ -2227,6 +2298,8 @@ var navMap = (function () {
     
   "filterByResearchGroup": function(group) {
     if ( group ) {
+      filtersPanel.recordFilterChange();
+
       filters.exist.researchGroup = true;
       filters.researchGroup.name = group;
       navMap.updateFilterList("researchGroup");
@@ -2242,6 +2315,8 @@ var navMap = (function () {
     
   "filterByCountry" : function(country, cc2) {
     if ( cc2 ) {
+      filtersPanel.recordFilterChange();
+
       filters.exist.country = true;
       filters.country.name = country;
       filters.country.cc2 = cc2;
@@ -2259,6 +2334,8 @@ var navMap = (function () {
   "filterByStratigraphy": function(rock) {
     // rock is = {"name": "stratName", "type": "Fm, Gr, or Mb", "display_name": "Awesome Gr"}
     if (rock) {
+      filtersPanel.recordFilterChange();
+
 	filters.exist.stratigraphy = true;
 	filters.stratigraphy.name = rock.nam;
 	filters.stratigraphy.rank = (rock.type) ? rock.type : rock.rank;
@@ -2573,6 +2650,32 @@ var navMap = (function () {
     }
 
     return params;
+  },
+
+  "applyFilterSnapshot": function(snapshot) {
+    filters.selectedInterval = JSON.parse(JSON.stringify(snapshot.selectedInterval));
+    filters.personFilter = JSON.parse(JSON.stringify(snapshot.personFilter));
+    filters.taxa = JSON.parse(JSON.stringify(snapshot.taxa));
+    filters.stratigraphy = JSON.parse(JSON.stringify(snapshot.stratigraphy));
+    filters.researchGroup = JSON.parse(JSON.stringify(snapshot.researchGroup));
+    filters.country = JSON.parse(JSON.stringify(snapshot.country));
+    filters.exist = JSON.parse(JSON.stringify(snapshot.exist));
+
+    rebuildFiltersUI();
+
+    if (filters.exist.taxon && typeof taxaTree !== "undefined") {
+      taxaTree.logHierarchy(filters.taxa[filters.taxa.length - 1].name);
+    } else if (typeof taxaTree !== "undefined" && taxaTree.showRootHierarchy) {
+      taxaTree.showRootHierarchy();
+    }
+
+    paleo_nav.getPrevalence();
+
+    if (d3.select("#reconstructMap").style("display") === "block") {
+      reconstructMap.rotate(filters.selectedInterval);
+    } else {
+      navMap.refresh("reset");
+    }
   },
 
   "filters": filters,
