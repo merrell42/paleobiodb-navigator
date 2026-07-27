@@ -246,7 +246,7 @@ var paleo_nav = (function() {
             document.activeElement.blur();
             break;
           case "txn":
-            navMap.filterByTaxon($suggestion.attr("data-oid") || $suggestion.attr("data-nam"));
+            navMap.filterByTaxon($suggestion.attr("data-oid") || $suggestion.attr("data-nam"), false, true);
             break;
           case "rgp":
             navMap.filterByResearchGroup($suggestion.attr("data-nam"));
@@ -262,6 +262,94 @@ var paleo_nav = (function() {
       var universalSuggestionIndex = -1;
       var universalSearchRequestId = 0;
       var universalSearchSuppressed = false;
+      var universalDefaultSuggestions = [
+        { nam: "Dinosauria", common: "dinosaur" },
+        { nam: "Mammalia", common: "mammal" },
+        { nam: "Aves", common: "bird" },
+        { nam: "Plantae", common: "plant" },
+        { nam: "Cetacea", common: "whale" },
+        { nam: "Chiroptera", common: "bat" },
+        { nam: "Insecta", common: "insect" },
+        { nam: "Trilobita", common: "trilobite" }
+      ];
+
+      function bindUniversalSuggestionEvents() {
+        $("#universalSearchResult .suggestion").on("click", function(event) {
+          event.preventDefault();
+          selectUniversalSuggestion($(this));
+        });
+        $("#universalSearchResult .suggestion").on("mouseenter", function() {
+          universalSuggestionIndex = $("#universalSearchResult .suggestion").index(this);
+          setUniversalSuggestionHighlight(universalSuggestionIndex);
+        });
+      }
+
+      function renderUniversalDefaultSuggestions() {
+        if (universalSearchSuppressed) {
+          return;
+        }
+        var htmlResult = "<h4 class='autocompleteTitle'>Taxa</h4>";
+        universalDefaultSuggestions.forEach(function(d) {
+          htmlResult += "<div class='suggestion' data-nam='" + d.nam + "' data-rtype='txn'>";
+          htmlResult += "<p class='tt-suggestion'>" + d.nam + " <small class=taxaRank>(" + d.common + ")</small></p></div>";
+        });
+        $("#universalSearchResult").html(htmlResult);
+        $("#universalSearchResult").css("display", "block");
+        universalSuggestionIndex = -1;
+        bindUniversalSuggestionEvents();
+      }
+
+      function runUniversalSearch(autocompleteInput) {
+        if (universalSearchSuppressed) {
+          return;
+        }
+        if (autocompleteInput.length < 3) {
+          universalSearchRequestId += 1;
+          if (autocompleteInput.length === 0) {
+            renderUniversalDefaultSuggestions();
+          } else {
+            $("#universalSearchResult").html("");
+            $("#universalSearchResult").css("display", "none");
+            universalSuggestionIndex = -1;
+          }
+          return;
+        }
+
+        var requestId = universalSearchRequestId + 1;
+        universalSearchRequestId = requestId;
+        d3.json(dataUrl + dataService + '/combined/auto.json?type=nav&name=' +
+          encodeURIComponent(autocompleteInput), function(error, result) {
+          if (requestId !== universalSearchRequestId) {
+            return;
+          }
+          if (error) {
+            result = { records: [] };
+          }
+          d3.json(dataUrl + dataService + '/taxa/list.json?taxon_name=' +
+            encodeURIComponent(autocompleteInput) + '&common=EN&limit=5', function(err2, commonData) {
+            if (requestId !== universalSearchRequestId) {
+              return;
+            }
+            var commonTaxa = (commonData && commonData.records) ? commonData.records : [];
+            taxaTree.load().then(function() {
+              if (requestId !== universalSearchRequestId) {
+                return;
+              }
+              renderUniversalAutocomplete(
+                result,
+                commonTaxa,
+                taxaTree.searchByCommonName(autocompleteInput, 5),
+                autocompleteInput
+              );
+            }).catch(function() {
+              if (requestId !== universalSearchRequestId) {
+                return;
+              }
+              renderUniversalAutocomplete(result, commonTaxa, [], autocompleteInput);
+            });
+          });
+        });
+      }
 
       function renderUniversalAutocomplete(combinedResult, commonTaxa, localTaxa, autocompleteInput) {
         if (universalSearchSuppressed) {
@@ -371,14 +459,7 @@ var paleo_nav = (function() {
         $("#universalSearchResult").html(htmlResult);
         $("#universalSearchResult").css("display", "block");
         universalSuggestionIndex = -1;
-        $(".suggestion").on("click", function(event) {
-          event.preventDefault();
-          selectUniversalSuggestion($(this));
-        });
-        $(".suggestion").on("mouseenter", function() {
-          universalSuggestionIndex = $("#universalSearchResult .suggestion").index(this);
-          setUniversalSuggestionHighlight(universalSuggestionIndex);
-        });
+        bindUniversalSuggestionEvents();
       }
 
       // new "combined/auto"-based universal autocomplete code
@@ -427,49 +508,7 @@ var paleo_nav = (function() {
         }
 
         universalSearchSuppressed = false;
-        var autocompleteInput = $("#universalAutocompleteInput").val();
-        if (autocompleteInput.length < 3) {
-          universalSearchRequestId += 1;
-          $("#universalSearchResult").html("");
-          $("#universalSearchResult").css("display", "none");
-          universalSuggestionIndex = -1;
-          return;
-        }
-
-        var requestId = universalSearchRequestId + 1;
-        universalSearchRequestId = requestId;
-        d3.json(dataUrl + dataService + '/combined/auto.json?type=nav&name=' +
-          encodeURIComponent(autocompleteInput), function(error, result) {
-          if (requestId !== universalSearchRequestId) {
-            return;
-          }
-          if (error) {
-            result = { records: [] };
-          }
-          d3.json(dataUrl + dataService + '/taxa/list.json?taxon_name=' +
-            encodeURIComponent(autocompleteInput) + '&common=EN&limit=5', function(err2, commonData) {
-            if (requestId !== universalSearchRequestId) {
-              return;
-            }
-            var commonTaxa = (commonData && commonData.records) ? commonData.records : [];
-            taxaTree.load().then(function() {
-              if (requestId !== universalSearchRequestId) {
-                return;
-              }
-              renderUniversalAutocomplete(
-                result,
-                commonTaxa,
-                taxaTree.searchByCommonName(autocompleteInput, 5),
-                autocompleteInput
-              );
-            }).catch(function() {
-              if (requestId !== universalSearchRequestId) {
-                return;
-              }
-              renderUniversalAutocomplete(result, commonTaxa, [], autocompleteInput);
-            });
-          });
-        });
+        runUniversalSearch($("#universalAutocompleteInput").val());
       });
 
 
@@ -478,6 +517,9 @@ var paleo_nav = (function() {
           $(".navbar-collapse").css("height", window.innerHeight - 50 + "px");
           $(".navbar-collapse").css("max-height", window.innerHeight - 50 + "px");
           $(".tt-dropdown-menu").css("width", $("#universalAutocompleteInput").width() + "px");
+        }
+        if (!$("#universalAutocompleteInput").val()) {
+          renderUniversalDefaultSuggestions();
         }
       });
 

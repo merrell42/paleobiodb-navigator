@@ -1894,8 +1894,11 @@ var navMap = (function () {
     d3.selectAll(".removeFilter").on("click", function () {
       var parent = d3.select(this).node().parentNode;
       parent = d3.select(parent);
-      var type = parent.attr("id"),
-        id = parseInt(parent.attr("data-id"));
+      var type = parent.attr("id");
+      if (!type && parent.classed("taxon-filter-extra")) {
+        type = "taxon";
+      }
+      var id = parseInt(parent.attr("data-id"));
 
       switch (type) {
         case "selectedInterval":
@@ -2013,7 +2016,7 @@ var navMap = (function () {
           .html(label);
       } else {
         d3.select(".filters")
-          .append("div")
+          .insert("div", "#stratFilter")
           .attr("class", "filter taxon-filter-extra")
           .attr("data-id", taxon.id)
           .style("display", "block")
