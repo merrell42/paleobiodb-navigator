@@ -273,6 +273,18 @@ var paleo_nav = (function() {
         { nam: "Trilobita", common: "trilobite" }
       ];
 
+      function isUniversalSearchResultsVisible() {
+        return $("#universalSearchResult").css("display") !== "none";
+      }
+
+      function hideUniversalSearchResults() {
+        universalSearchSuppressed = true;
+        universalSearchRequestId += 1;
+        $("#universalSearchResult").css("display", "none");
+        universalSuggestionIndex = -1;
+        $("#universalAutocompleteInput").blur();
+      }
+
       function bindUniversalSuggestionEvents() {
         $("#universalSearchResult .suggestion").on("click", function(event) {
           event.preventDefault();
@@ -465,12 +477,9 @@ var paleo_nav = (function() {
       // new "combined/auto"-based universal autocomplete code
       var universalAutocomplete = $("#universalAutocompleteInput").on("keydown", function(event) {
         if (event.key === "Escape" || event.keyCode === 27) {
-          if ($("#universalSearchResult").css("display") !== "none") {
+          if (isUniversalSearchResultsVisible()) {
             event.preventDefault();
-            universalSearchSuppressed = true;
-            universalSearchRequestId += 1;
-            $("#universalSearchResult").css("display", "none");
-            universalSuggestionIndex = -1;
+            hideUniversalSearchResults();
           }
           return;
         }
@@ -513,14 +522,13 @@ var paleo_nav = (function() {
 
 
       $("#universalAutocompleteInput").on("focus", function() {
+        universalSearchSuppressed = false;
         if (window.innerWidth < 700) {
           $(".navbar-collapse").css("height", window.innerHeight - 50 + "px");
           $(".navbar-collapse").css("max-height", window.innerHeight - 50 + "px");
           $(".tt-dropdown-menu").css("width", $("#universalAutocompleteInput").width() + "px");
         }
-        if (!$("#universalAutocompleteInput").val()) {
-          renderUniversalDefaultSuggestions();
-        }
+        runUniversalSearch($("#universalAutocompleteInput").val());
       });
 
       $("#universalAutocompleteInput").on("blur", function() {
@@ -528,6 +536,24 @@ var paleo_nav = (function() {
         if (window.innerWidth < 700) {
           $(".navbar-collapse").css("height", "auto");
           $(".navbar-collapse").css("max-height", "340px");
+        }
+        setTimeout(function() {
+          if (!$(document.activeElement).closest(".universalSearch").length) {
+            hideUniversalSearchResults();
+          }
+        }, 150);
+      });
+
+      $("#universalSearchResult").on("mousedown", function(event) {
+        event.preventDefault();
+      });
+
+      $(document).on("mousedown", function(event) {
+        if ($(event.target).closest(".universalSearch").length) {
+          return;
+        }
+        if (isUniversalSearchResultsVisible()) {
+          hideUniversalSearchResults();
         }
       });
 
