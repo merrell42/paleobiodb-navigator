@@ -210,7 +210,7 @@ nav {
 }
 .helpModalControls {
   position: absolute;
-  top: 2em;
+  top: 8px;
   left: 3em;
   line-height: 40px;
 }
@@ -236,7 +236,7 @@ nav {
   text-align: center;
 }
 .helpModalTimescaleLabel.click {
-  left:1em;
+  left:180px;
 }
 .helpModalTimescaleLabel.dblclick {
   right:1em;
