@@ -78,7 +78,7 @@ var navMap = (function () {
     mobileBreakpointWidth: 468,
     filtersWideLayoutMinHeight: 600,
     filtersSidebarWidth: 49,
-    filtersBottomGutter: 6,
+    filtersBottomGutter: 21,
     filtersPanelLeftGutter: 6,
     prevalencePanelChrome: 121,
     helpModalLabelOffset: 78,
@@ -157,7 +157,8 @@ var navMap = (function () {
   }
 
   function getTimeScaleHeight() {
-    if (d3.select(".timeScale").style("visibility") === "hidden") {
+    var timeScaleEl = d3.select(".timeScale");
+    if (!timeScaleEl.empty() && timeScaleEl.style("visibility") === "hidden") {
       return 0;
     }
     var measured = $("#time").height();
