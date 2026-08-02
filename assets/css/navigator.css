@@ -273,19 +273,57 @@ nav {
   padding-left:0;
   padding-right:0;
   position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 #graphicRow {
   width:100%;
   margin-top: 36px;
+  height: calc(100vh - 36px);
+  display: flex;
+  flex-wrap: wrap;
   visibility: hidden;
 }
+#graphicRow > [class*="col-"] {
+  height: 100%;
+}
 #mapContainer {
-  display: inline;
+  display: block;
   position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+}
+#mapContainer > #svgMap,
+#mapContainer > #map,
+#mapContainer > #reconstructMap {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+#time {
+  margin-top: 0;
+  flex: 0 0 auto;
+}
+#svgMap {
+  width: 100%;
+  height: 100%;
+}
+#mapContainer .timeBars {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 450;
+  pointer-events: none;
+  overflow: hidden;
 }
 #map {
-  height:400px;
   width:100%;
+  height: 0;
 }
 /* Leaflet defaults to a grab hand; use the normal arrow instead */
 .leaflet-container {
@@ -302,10 +340,20 @@ nav {
   line-height: 1em;
 }
 #svgMap > svg {
-  min-height: 329px;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+#reconstructMap {
+  width: 100%;
+  height: 100%;
 }
 #reconstructMap > svg {
-  min-height: 329px;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
 }
 #mapControlCover {
   position: absolute;
@@ -1408,6 +1456,9 @@ br {
     top: 0.1em;
   }
   .timeScale {
+    visibility: hidden;
+  }
+  .timeBars {
     visibility: hidden;
   }
   .navbar-text.help {

@@ -72,7 +72,7 @@ var navMap = (function () {
     timescaleMinHeight: 15,
     timescaleHeightRatio: 5.6,
     leafletMapTopChrome: 36,
-    leafletMapBottomOffset: 40,
+    leafletMapBottomOffset: 0,
     infoPanelGutter: 15,
     mobileInfoBottom: 91,
     mobileBreakpointWidth: 468,
@@ -124,6 +124,14 @@ var navMap = (function () {
       parseInt(d3.select("#map").style("height"), 10) < 1;
   }
 
+  function isLeafletMapActive() {
+    var mapHeight = d3.select("#map").style("height");
+    return d3.select("#svgMap").style("display") === "none" &&
+      mapHeight !== "0px" &&
+      mapHeight !== "0" &&
+      parseInt(mapHeight, 10) !== 0;
+  }
+
   function markerRadius(screenRadius) {
     return screenRadius / svgZoomScale;
   }
@@ -158,9 +166,32 @@ var navMap = (function () {
       : window.innerHeight / LAYOUT.timescaleHeightRatio;
   }
 
+  function getMapAreaHeight() {
+    var mapContainer = document.getElementById("mapContainer");
+    if (mapContainer && mapContainer.clientHeight > 0) {
+      return mapContainer.clientHeight;
+    }
+
+    var graphics = document.getElementById("graphics");
+    var timeEl = document.getElementById("time");
+    if (graphics && timeEl) {
+      var timeHeight = timeEl.offsetHeight || getTimeScaleHeight();
+      return Math.max(0, window.innerHeight - graphics.getBoundingClientRect().top - timeHeight);
+    }
+
+    return window.innerHeight - LAYOUT.topChromeHeight - getTimeScaleHeight();
+  }
+
+  function getLeafletMapHeight() {
+    return getMapAreaHeight();
+  }
+
   function updateFiltersPanelSummary(data) {
     if (data) {
       filtersPanel.summarize(data, filters.exist, LAYOUT, getTimeScaleHeight);
+      if (typeof timeBars !== "undefined") {
+        timeBars.refresh();
+      }
     } else {
       filtersPanel.setInfoSummary(filters.exist, LAYOUT, getTimeScaleHeight);
     }
@@ -229,10 +260,7 @@ var navMap = (function () {
 
   function getSvgContainerSize() {
     var containerWidth = parseInt(d3.select("#graphics").style("width"), 10) - LAYOUT.graphicsWidthPadding,
-      timeHeight = getTimeScaleHeight(),
-      containerHeight = timeHeight === 0
-        ? window.innerHeight - LAYOUT.topChromeHeight
-        : window.innerHeight - timeHeight - LAYOUT.bottomChromeHeight;
+      containerHeight = getMapAreaHeight();
 
     return {
       width: containerWidth,
@@ -589,13 +617,7 @@ var navMap = (function () {
         projected = mercator.invert(coords);
 
       d3.select("#svgMap").style("display", "none");
-      d3.select("#map").style("height", function () {
-        if (d3.select(".timeScale").style("visibility") === "hidden") {
-          return (window.innerHeight - LAYOUT.leafletMapTopChrome) + "px";
-        } else {
-          return (window.innerHeight - getTimeScaleHeight() - LAYOUT.leafletMapBottomOffset) + "px";
-        }
-      });
+      d3.select("#map").style("height", "100%");
 
       map.setView([parseInt(projected[1]), parseInt(projected[0])], 3, { animate: false });
 
@@ -606,6 +628,9 @@ var navMap = (function () {
 
       navMap.refresh("reset");
       map.invalidateSize();
+      if (typeof timeBars !== "undefined") {
+        timeBars.resize();
+      }
     },
 
     // Given a [lat,lng] and a zoom level, adjust the map
@@ -995,7 +1020,7 @@ var navMap = (function () {
   },
 
   "refreshSvgBins": function(data, level) {
-    filtersPanel.summarize(data, filters.exist, LAYOUT, getTimeScaleHeight);
+    updateFiltersPanelSummary(data);
 
     var g = d3.select("#svgBinHolder");
 
@@ -1050,7 +1075,7 @@ var navMap = (function () {
   },
 
   "refreshSvgCollections": function(data) {
-    filtersPanel.summarize(data, filters.exist, LAYOUT, getTimeScaleHeight);
+    updateFiltersPanelSummary(data);
 
     var g = d3.select("#svgBinHolder");
 
@@ -1103,7 +1128,7 @@ var navMap = (function () {
   },
 
   "drawBins": function(data, level, zoom) {
-    filtersPanel.summarize(data, filters.exist, LAYOUT, getTimeScaleHeight);
+    updateFiltersPanelSummary(data);
 
     d3.selectAll(".clusters").remove();
 
@@ -1159,7 +1184,7 @@ var navMap = (function () {
   },
 
   "drawCollections": function(data, level, zoom) {
-    filtersPanel.summarize(data, filters.exist, LAYOUT, getTimeScaleHeight);
+    updateFiltersPanelSummary(data);
 
     var g = d3.select("#binHolder");
 
@@ -1785,11 +1810,15 @@ var navMap = (function () {
     return requestString;
   },
 
-  "parseURL": function(url) {
+  "parseURL": function(url, opts) {
     var count = 0;
+    var skipFilters = (opts && opts.skipFilters) ? opts.skipFilters : [];
     for (var key in filters.exist) {
       if (filters.exist.hasOwnProperty(key)) {
         if (filters.exist[key] === true) {
+          if (skipFilters.indexOf(key) >= 0) {
+            continue;
+          }
           switch (key) {
             case "selectedInterval":
               if ( filters.selectedInterval.oid && filters.selectedInterval.oid > 0 )
@@ -1924,7 +1953,14 @@ var navMap = (function () {
 
   "resize": function() {
     d3.select("#svgMap").style("display", "block");
-    d3.select("#map").style("height", 0);
+
+    if (isLeafletMapActive()) {
+      d3.select("#map").style("height", "100%");
+      map.invalidateSize();
+    } else {
+      d3.select("#map").style("height", 0);
+    }
+
     navMap.resizeSvgMap();
 
     if (window.innerWidth < 700) {
@@ -1935,6 +1971,10 @@ var navMap = (function () {
     }
 
     filtersPanel.updateLayout(LAYOUT, getTimeScaleHeight);
+
+    if (typeof timeBars !== "undefined") {
+      timeBars.resize();
+    }
 
     d3.select(".prevalence-summary, .prevalence-row")
       .style("height", function () {

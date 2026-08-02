@@ -131,6 +131,9 @@ var timeScale = (function() {
 
         d3.select(".timeScale").select("g")
           .attr("transform", "translate(" + [parseInt(proposed), 0] + ")scale(" + scale + ")");
+        if (typeof timeBars !== "undefined") {
+          timeBars.syncTransform();
+        }
       });
 
     // Add class timeScale to whatever div was supplied
@@ -420,11 +423,15 @@ var timeScale = (function() {
     }
 
     // Stores the currently focused time interval for state restoration purposes
+    currentInterval = d;
     timeScale.currentInterval = d;
 
     // Reset panning — scale only; keep local layout at layoutWidth
     d3.select(".timeScale g")
       .attr("transform", "scale(" + getLayoutScale(getContainerWidth()) + ")");
+    if (typeof timeBars !== "undefined") {
+      timeBars.syncTransform();
+    }
 
     // var n keeps track of the transition
     var n = 0,
@@ -506,6 +513,9 @@ var timeScale = (function() {
         }
       });
     resize();
+    if (typeof timeBars !== "undefined") {
+      timeBars.refresh();
+    }
   }
 
   // Darken a hex color while preserving hue. Amount: 0–1 fraction of original brightness.
@@ -572,6 +582,12 @@ var timeScale = (function() {
     // intervals would otherwise inflate the measured box and the page height.
     g.style("width", containerWidth + "px")
       .style("height", Math.ceil(localHeight * scale) + "px");
+    if (typeof timeBars !== "undefined") {
+      timeBars.resize();
+    }
+    if (typeof navMap !== "undefined" && navMap.resize) {
+      navMap.resize();
+    }
   }
 
   return {

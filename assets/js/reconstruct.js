@@ -25,14 +25,10 @@ var reconstructMap = (function() {
 
   function getReconstructContainerSize() {
     var containerWidth = parseInt(d3.select("#graphics").style("width"), 10),
-      containerHeight;
-
-    if (d3.select(".timeScale").style("visibility") === "hidden") {
-      containerHeight = window.innerHeight - 40;
-    } else {
-      var timeHeight = ($("#time").height() > 15) ? $("#time").height() : window.innerHeight / 5.6;
-      containerHeight = window.innerHeight - timeHeight - 40;
-    }
+      mapContainer = document.getElementById("mapContainer"),
+      containerHeight = mapContainer && mapContainer.clientHeight > 0
+        ? mapContainer.clientHeight
+        : window.innerHeight - 40;
 
     return {
       width: containerWidth,

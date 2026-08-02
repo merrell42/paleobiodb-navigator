@@ -10,7 +10,7 @@
 .timeScale svg {
   display: block;
   overflow: hidden;
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 .timeScale .fullName,
 .timeScale .abbr {
@@ -18,6 +18,28 @@
 }
 .timeScale rect:hover {
   filter: brightness(1.25);
+}
+.timeBars {
+  width: 100%;
+  overflow: hidden;
+  cursor: default;
+}
+.timeBars svg {
+  display: block;
+  overflow: hidden;
+  margin-bottom: 0;
+  width: 100%;
+  pointer-events: none;
+}
+.timeBars .timeBar {
+  fill: rgba(70, 70, 70, 0.72);
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 1px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.timeBars .timeBar:hover {
+  fill: rgba(50, 50, 50, 0.88);
 }
 rect {
   stroke: #fff;

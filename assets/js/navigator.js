@@ -39,6 +39,9 @@ var paleo_nav = (function() {
       } else {
         timeScaleSize = 110;
       }
+      if (typeof timeBars !== "undefined") {
+        timeBars.init();
+      }
       timeScale.init("time", timeScaleSize, function() {
         navMap.init(function(){
           navMap.resizeSvgMap();
