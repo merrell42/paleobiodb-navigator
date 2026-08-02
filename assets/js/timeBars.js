@@ -1,9 +1,11 @@
 var timeBars = (function() {
 
-  var barHeight = 10,
+  var barHeight = 15,
       layoutWidth = 960,
       sourceRecords = [],
+      filteredSourceRecords = null,
       currentRequest = null,
+      filteredRequest = null,
       MIN_RATE_DURATION_MYR = 0.1,
       MIN_BAR_WIDTH = 3;
 
@@ -391,9 +393,77 @@ var timeBars = (function() {
     return aggregateRecords(records, barIntervals);
   }
 
-  function maxValue(values, intervals) {
+  function getTimeFilterId() {
+    if (typeof navMap === "undefined" || !navMap.filters || !navMap.filters.exist.selectedInterval) {
+      return null;
+    }
+    var oid = navMap.filters.selectedInterval.oid;
+    return oid ? String(oid) : null;
+  }
+
+  function isBarInTimeFilter(bar) {
+    var filterId = getTimeFilterId();
+    if (!filterId) {
+      return true;
+    }
+    return isDescendantOfBar(bar.id, filterId);
+  }
+
+  function abortPendingRequests() {
+    if (currentRequest) {
+      currentRequest.abort();
+      currentRequest = null;
+    }
+    if (filteredRequest) {
+      filteredRequest.abort();
+      filteredRequest = null;
+    }
+  }
+
+  function buildQuickdivUrl(skipTimeFilter) {
+    var bounds = getMapBounds();
+    var url = paleo_nav.dataUrl + paleo_nav.dataService + "/occs/quickdiv.json?";
+    url = skipTimeFilter
+      ? navMap.parseURL(url, { skipFilters: ["selectedInterval"] })
+      : navMap.parseURL(url);
+    url += "&lngmin=" + bounds.sw.lng.toFixed(1) +
+      "&lngmax=" + bounds.ne.lng.toFixed(1) +
+      "&latmin=" + bounds.sw.lat.toFixed(1) +
+      "&latmax=" + bounds.ne.lat.toFixed(1);
+    url += "&count=genera&time_reso=" + getQuickdivReso();
+    return url;
+  }
+
+  function mergeFilteredCounts(contextAgg, filteredAgg, intervals) {
+    var counts = {};
+    var rates = {};
+    var hasFilter = getTimeFilterId() && filteredAgg;
+
+    intervals.forEach(function(bar) {
+      var id = String(bar.id);
+      var duration = intervalDuration(bar);
+      var count;
+      var inFilter = isBarInTimeFilter(bar);
+
+      if (hasFilter && inFilter) {
+        count = filteredAgg.counts[id] || 0;
+      } else {
+        count = contextAgg.counts[id] || 0;
+      }
+
+      counts[id] = count;
+      rates[id] = rateForBarHeight(count, duration);
+    });
+
+    return { counts: counts, rates: rates };
+  }
+
+  function maxValue(values, intervals, includeBar) {
     var max = 0;
     intervals.forEach(function(bar) {
+      if (includeBar && !includeBar(bar)) {
+        return;
+      }
       var value = values[String(bar.id)] || 0;
       if (value > max) {
         max = value;
@@ -451,26 +521,33 @@ var timeBars = (function() {
       return;
     }
 
-    var bounds = getMapBounds();
-    var url = paleo_nav.dataUrl + paleo_nav.dataService + "/occs/quickdiv.json?";
-    url = navMap.parseURL(url);
-    url += "&lngmin=" + bounds.sw.lng.toFixed(1) +
-      "&lngmax=" + bounds.ne.lng.toFixed(1) +
-      "&latmin=" + bounds.sw.lat.toFixed(1) +
-      "&latmax=" + bounds.ne.lat.toFixed(1);
-    url += "&count=genera&time_reso=" + getQuickdivReso();
+    abortPendingRequests();
+    filteredSourceRecords = null;
 
-    if (currentRequest) {
-      currentRequest.abort();
-      currentRequest = null;
-    }
+    var contextUrl = buildQuickdivUrl(true);
+    var needsFiltered = !!getTimeFilterId();
 
-    currentRequest = d3.json(url, function(error, data) {
+    currentRequest = d3.json(contextUrl, function(error, data) {
       currentRequest = null;
       if (error) {
         return;
       }
-      setData(data.records || []);
+      sourceRecords = data.records || [];
+
+      if (!needsFiltered) {
+        setData(sourceRecords);
+        return;
+      }
+
+      filteredRequest = d3.json(buildQuickdivUrl(false), function(filterError, filterData) {
+        filteredRequest = null;
+        if (!filterError) {
+          filteredSourceRecords = filterData.records || [];
+        }
+        draw();
+        setTimeout(draw, 100);
+        setTimeout(draw, 850);
+      });
     });
   }
 
@@ -491,12 +568,18 @@ var timeBars = (function() {
     }
 
     var aggregated = aggregateData(sourceRecords, intervals);
-    var counts = aggregated.counts;
-    var rates = aggregated.rates;
-    var peak = maxValue(rates, intervals);
+    var filteredAgg = filteredSourceRecords
+      ? aggregateData(filteredSourceRecords, intervals)
+      : null;
+    var merged = mergeFilteredCounts(aggregated, filteredAgg, intervals);
+    var counts = merged.counts;
+    var rates = merged.rates;
+    var timeFilterActive = !!getTimeFilterId();
+    var peakFrom = timeFilterActive ? isBarInTimeFilter : null;
+    var peak = maxValue(rates, intervals, peakFrom);
 
     if (peak <= 0) {
-      peak = maxValue(counts, intervals);
+      peak = maxValue(counts, intervals, peakFrom);
     }
 
     if (peak <= 0) {
@@ -517,7 +600,10 @@ var timeBars = (function() {
         navMap.refresh("reset");
       });
 
-    bars.attr("x", function(d) {
+    bars.attr("class", function(d) {
+        return isBarInTimeFilter(d) ? "timeBar" : "timeBar timeBar--outside";
+      })
+      .attr("x", function(d) {
         var value = useRates ? (rates[String(d.id)] || 0) : (counts[String(d.id)] || 0);
         return barDisplayGeometry(d, value > 0).x;
       })

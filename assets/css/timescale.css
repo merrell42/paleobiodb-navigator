@@ -32,14 +32,20 @@
   pointer-events: none;
 }
 .timeBars .timeBar {
-  fill: rgba(70, 70, 70, 0.72);
+  fill: rgba(70, 70, 70, 0.82);
   stroke: rgba(255, 255, 255, 0.55);
   stroke-width: 1px;
   cursor: pointer;
   pointer-events: auto;
 }
+.timeBars .timeBar--outside {
+  fill: rgba(70, 70, 70, 0.28);
+}
 .timeBars .timeBar:hover {
   fill: rgba(50, 50, 50, 0.88);
+}
+.timeBars .timeBar--outside:hover {
+  fill: rgba(50, 50, 50, 0.45);
 }
 rect {
   stroke: #fff;
