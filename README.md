@@ -53,3 +53,21 @@ Adapted from https://gist.github.com/isaacs/579814#file-node-and-npm-in-30-secon
 9. ````curl https://npmjs.org/install.sh | sh````
 
 If you get npm errno -13 with code EACCES while installing grunt, run ````sudo chown -R $USER /usr/local````. This will make you the owner of /usr/local which will make sure you never have to use sudo with npm (via http://howtonode.org/introduction-to-npm)
+
+## Restart Local Server
+
+To restart the navigator local server:
+
+Open PowerShell
+Stop whatever is using port 8000:
+Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue |
+  Select-Object -ExpandProperty OwningProcess -Unique |
+  ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }
+Go to the project folder:
+cd c:\fossils\navigator
+Start the server:
+python -m http.server 8000
+Open:
+http://localhost:8000/debug.html (unminified scripts)
+http://localhost:8000/ (or index.html for the production build)
+Leave that PowerShell window open while you use the site. Stop the server with Ctrl+C.
