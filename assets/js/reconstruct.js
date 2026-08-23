@@ -84,7 +84,7 @@ var reconstructMap = (function() {
 
   function zoomBy(factor) {
     var center = reconstructZoomCenter(),
-        newScale = Math.max(1, Math.min(8, zoomScale * factor)),
+        newScale = Math.max(1, Math.min(32, zoomScale * factor)),
         newTranslate = constrainMapTranslate(newScale, [
           center[0] - (center[0] - zoomTranslate[0]) * (newScale / zoomScale),
           center[1] - (center[1] - zoomTranslate[1]) * (newScale / zoomScale)
@@ -123,7 +123,7 @@ var reconstructMap = (function() {
         .attr("xlink:href", "#reconstructSphere");
 
       zoomBehavior = d3.behavior.zoom()
-        .scaleExtent([1, 8])
+        .scaleExtent([1, 32])
         .on("zoom", function() {
           zoomScale = d3.event.scale;
           zoomTranslate = constrainMapTranslate(zoomScale, d3.event.translate, getReconstructContainerSize());

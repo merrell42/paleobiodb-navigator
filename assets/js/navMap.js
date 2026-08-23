@@ -87,7 +87,7 @@ var navMap = (function () {
 
   var ZOOM = {
     minScale: 1,
-    maxScale: 8,
+    maxScale: 32,
     zoomFactor: 1.5,
     dataRefreshDebounceMs: 300,
     detailGlobalMax: 2.5,
@@ -403,7 +403,7 @@ var navMap = (function () {
       map = new L.Map('map', {
         center: new L.LatLng(7, 0),
         zoom: 2,
-        maxZoom: 11,
+        maxZoom: 38,
         minZoom: 2,
         zoomControl: false,
         inertiaDeceleration: 6000,
