@@ -7,7 +7,9 @@ var timeBars = (function() {
       currentRequest = null,
       filteredRequest = null,
       MIN_RATE_DURATION_MYR = 0.1,
-      MIN_BAR_WIDTH = 3;
+      MIN_BAR_WIDTH = 3,
+      LOG_SCALE = true,
+      RESCALE_ON_TIME_FILTER = false;
 
   function getContainerWidth() {
     var graphics = document.getElementById("graphics");
@@ -458,10 +460,10 @@ var timeBars = (function() {
     return { counts: counts, rates: rates };
   }
 
-  function maxValue(values, intervals, includeBar) {
+  function maxValue(values, intervals, barFilter) {
     var max = 0;
     intervals.forEach(function(bar) {
-      if (includeBar && !includeBar(bar)) {
+      if (barFilter && !barFilter(bar)) {
         return;
       }
       var value = values[String(bar.id)] || 0;
@@ -470,6 +472,27 @@ var timeBars = (function() {
       }
     });
     return max;
+  }
+
+  // Min and max of positive bar values.
+  // Zeros are excluded, since on a log scale they would go to -Infinity.
+  function nonZeroBounds(values, intervals, barFilter) {
+    var min = Infinity;
+    var max = 0;
+    intervals.forEach(function(bar) {
+      if (barFilter && !barFilter(bar)) {
+        return;
+      }
+      var value = values[String(bar.id)] || 0;
+      if (value > 0) {
+        min = Math.min(min, value);
+        max = Math.max(max, value);
+      }
+    });
+    return {
+      min: isFinite(min) ? min : 0,
+      max: max
+    };
   }
 
   function updateOverlayVisibility() {
@@ -486,11 +509,31 @@ var timeBars = (function() {
     overlay.style("display", timeVisible && reconstructHidden ? "block" : "none");
   }
 
-  function scaleToFullHeight(value, peak) {
-    if (!peak || peak <= 0 || value <= 0) {
+  function scaleToFullHeightLinear(value, peak) {
+    var maxHeight = barHeight - 4;
+    if (!peak || peak <= 0 || !value || value <= 0) {
       return 0;
     }
-    return (value / peak) * (barHeight - 4);
+    return (value / peak) * maxHeight;
+  }
+
+  function scaleToFullHeightLog(value, logBounds) {
+    var maxHeight = barHeight - 4;
+
+    if (!logBounds || logBounds.min <= 0 || logBounds.max <= 0) {
+      return 0;
+    }
+
+    var clamped = !value || value <= 0 ? logBounds.min : value;
+    clamped = Math.max(logBounds.min, Math.min(logBounds.max, clamped));
+
+    if (logBounds.min === logBounds.max) {
+      return maxHeight;
+    }
+
+    var logMin = Math.log(logBounds.min);
+    var logMax = Math.log(logBounds.max);
+    return ((Math.log(clamped) - logMin) / (logMax - logMin)) * maxHeight;
   }
 
   function init() {
@@ -525,7 +568,7 @@ var timeBars = (function() {
     filteredSourceRecords = null;
 
     var contextUrl = buildQuickdivUrl(true);
-    var needsFiltered = !!getTimeFilterId();
+    var needsFiltered = RESCALE_ON_TIME_FILTER && !!getTimeFilterId();
 
     currentRequest = d3.json(contextUrl, function(error, data) {
       currentRequest = null;
@@ -568,18 +611,18 @@ var timeBars = (function() {
     }
 
     var aggregated = aggregateData(sourceRecords, intervals);
-    var filteredAgg = filteredSourceRecords
+    var filteredAgg = RESCALE_ON_TIME_FILTER && filteredSourceRecords
       ? aggregateData(filteredSourceRecords, intervals)
       : null;
     var merged = mergeFilteredCounts(aggregated, filteredAgg, intervals);
     var counts = merged.counts;
     var rates = merged.rates;
-    var timeFilterActive = !!getTimeFilterId();
-    var peakFrom = timeFilterActive ? isBarInTimeFilter : null;
-    var peak = maxValue(rates, intervals, peakFrom);
+    // Optional filter: when set, only matching bars define the scale peak/bounds.
+    var scaleBarFilter = RESCALE_ON_TIME_FILTER && getTimeFilterId() ? isBarInTimeFilter : null;
+    var peak = maxValue(rates, intervals, scaleBarFilter);
 
     if (peak <= 0) {
-      peak = maxValue(counts, intervals, peakFrom);
+      peak = maxValue(counts, intervals, scaleBarFilter);
     }
 
     if (peak <= 0) {
@@ -588,6 +631,15 @@ var timeBars = (function() {
     }
 
     var useRates = maxValue(rates, intervals) > 0;
+    var scaleValues = useRates ? rates : counts;
+    var logBounds = LOG_SCALE ? nonZeroBounds(scaleValues, intervals, scaleBarFilter) : null;
+
+    function barScaleHeight(value) {
+      return LOG_SCALE
+        ? scaleToFullHeightLog(value, logBounds)
+        : scaleToFullHeightLinear(value, peak);
+    }
+
     var group = d3.select(".timeBarsGroup"),
         bars = group.selectAll("rect.timeBar")
           .data(intervals, function(d) { return d.id; });
@@ -613,11 +665,11 @@ var timeBars = (function() {
       })
       .attr("y", function(d) {
         var value = useRates ? (rates[String(d.id)] || 0) : (counts[String(d.id)] || 0);
-        return barHeight - scaleToFullHeight(value, peak);
+        return barHeight - barScaleHeight(value);
       })
       .attr("height", function(d) {
         var value = useRates ? (rates[String(d.id)] || 0) : (counts[String(d.id)] || 0);
-        return scaleToFullHeight(value, peak);
+        return barScaleHeight(value);
       })
       .style("opacity", function(d) {
         var value = useRates ? (rates[String(d.id)] || 0) : (counts[String(d.id)] || 0);
