@@ -87,11 +87,11 @@ var navMap = (function () {
       });
 
       var cartoAttrib = '© OpenStreetMap contributors, © CARTO';
-      var cartoVoyager = new L.TileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+	  var cartoVoyager = new L.TileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=${tile_api_key}`, {
         attribution: cartoAttrib
       }).addTo(map); // Add Voyager as the default tile layer
 
-      var cartoVoyagerLabels = new L.TileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels/{z}/{x}/{y}.png', {
+	  var cartoVoyagerLabels = new L.TileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels/{z}/{x}/{y}.png?key=${tile_api_key}`, {
         attribution: cartoAttrib
       });
 
@@ -472,7 +472,7 @@ var navMap = (function () {
       }
 
       // Depending on the zoom level, call a different service from PaleoDB, feed it a bounding box, and pass it to the proper point parsing function
-      if (zoom < 5 && filtered === false) {
+      if (zoom < 4 && filtered === false) {
         var url = paleo_nav.dataUrl + paleo_nav.dataService + '/colls/summary.json?lngmin=' + sw.lng + '&lngmax=' + ne.lng + '&latmin=' + sw.lat + '&latmax=' + ne.lat + '&level=2&show=time';
 
         currentRequest = d3.json(navMap.parseURL(url), function (error, data) {
@@ -482,7 +482,7 @@ var navMap = (function () {
           navMap.drawBins(data, 1, zoom);
         });
 
-      } else if (zoom > 4 && zoom < 7 || zoom < 5 && filtered === true) {
+      } else if (zoom > 3 && zoom < 7 || zoom < 5 && filtered === true) {
 
         // If filtered only by a time interval...
         if (filters.exist.selectedInterval === true && !filters.exist.personFilter && !filters.exist.taxon && !filters.exist.stratigraphy && !filters.exist.researchGroup && !filters.exist.country) {
