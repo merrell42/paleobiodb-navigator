@@ -12,7 +12,7 @@ var paleo_nav = (function() {
 
   } else if (window.location.search.indexOf("test") > -1) {
     dataUrl = "https://training.paleobiodb.org";
-  } else if ( window.location.hostname === "localhost" ) {
+  } else if ( window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ) {
     dataUrl = "https://paleobiodb.org";
   }
 

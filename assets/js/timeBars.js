@@ -6,8 +6,10 @@ var timeBars = (function() {
       filteredSourceRecords = null,
       currentRequest = null,
       filteredRequest = null,
+      fetchGeneration = 0,
       MIN_RATE_DURATION_MYR = 0.1,
       MIN_BAR_WIDTH = 3,
+      MIN_BAR_HEIGHT = 1,
       LOG_SCALE = true,
       RESCALE_ON_TIME_FILTER = false;
 
@@ -153,6 +155,19 @@ var timeBars = (function() {
     return "period";
   }
 
+  // Stage/epoch requests omit Precambrian: those eons have no ages. Also
+  // fetch coarser bins so Proterozoic periods and Archean eras are counted.
+  function getQuickdivResolutions() {
+    var primary = getQuickdivReso();
+    var resols = [primary];
+    if (primary === "stage" || primary === "epoch") {
+      resols.push("period", "era");
+    } else if (primary === "period") {
+      resols.push("era");
+    }
+    return resols;
+  }
+
   function getMapBounds() {
     var sw = { lng: -180, lat: -90 },
         ne = { lng: 180, lat: 90 };
@@ -183,28 +198,51 @@ var timeBars = (function() {
       results.push(node);
       return;
     }
-    if (node.children) {
+    if (node.children && node.children.length) {
       node.children.forEach(function(child) {
         collectIntervalsAtLevel(child, level, results);
       });
+      return;
+    }
+    // Precambrian branches often stop at period/era. Still draw a bar there.
+    if (node.level && node.early_age != null && node.late_age != null) {
+      results.push(node);
     }
   }
 
+  function getTimescaleRoot() {
+    if (typeof timeScale !== "undefined" && timeScale.interval_hash) {
+      return timeScale.interval_hash[0] || timeScale.interval_hash["0"];
+    }
+    return null;
+  }
+
   function getBarIntervals() {
-    var focus = getFocus();
-    if (!focus) {
+    var root = getTimescaleRoot() || getFocus();
+    if (!root) {
       return [];
     }
 
     var level = getBarLevel();
     var intervals = [];
-    collectIntervalsAtLevel(focus, level, intervals);
+    collectIntervalsAtLevel(root, level, intervals);
 
-    if (!intervals.length && focus.early_age != null && focus.late_age != null) {
-      intervals = [focus];
+    if (!intervals.length) {
+      var focus = getFocus();
+      if (focus && focus.early_age != null && focus.late_age != null) {
+        intervals = [focus];
+      }
     }
 
     return intervals;
+  }
+
+  function isBarUnderFocus(bar) {
+    var focus = getFocus();
+    if (!focus || focus.id == null || String(focus.id) === "0" || !focus.level) {
+      return true;
+    }
+    return isDescendantOfBar(bar.id, focus.id);
   }
 
   function barGeometry(interval) {
@@ -349,6 +387,7 @@ var timeBars = (function() {
   }
 
   // Occurrence counts per geological interval from /occs/quickdiv.json.
+  // Finest bins first. Coarser Precambrian bins fill gaps that have no ages.
   function aggregateQuickdiv(records, barIntervals) {
     var counts = {};
     var rates = {};
@@ -357,11 +396,19 @@ var timeBars = (function() {
       counts[String(bar.id)] = 0;
     });
 
-    records.forEach(function(record) {
+    var sorted = records.slice().sort(function(a, b) {
+      return intervalLevelForOid(b.oid) - intervalLevelForOid(a.oid);
+    });
+
+    sorted.forEach(function(record) {
       var noc = +(record.noc || 0);
       var oid = String(record.oid);
 
       if (!noc || !record.oid) {
+        return;
+      }
+
+      if (quickdivAlreadyCovered(oid, barIntervals, counts)) {
         return;
       }
 
@@ -388,6 +435,25 @@ var timeBars = (function() {
     };
   }
 
+  function intervalLevelForOid(oid) {
+    var interval = getInterval(oid);
+    return (interval && interval.level) ? interval.level : 0;
+  }
+
+  // Skip a coarser bin (period/era) when finer descendant bars already have counts.
+  function quickdivAlreadyCovered(oid, barIntervals, counts) {
+    var selfId = String(oid);
+    var descendants = descendantBars(oid, barIntervals);
+    var i;
+    for (i = 0; i < descendants.length; i++) {
+      var id = String(descendants[i].id);
+      if (id !== selfId && (counts[id] || 0) > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function aggregateData(records, barIntervals) {
     if (isQuickdivData(records)) {
       return aggregateQuickdiv(records, barIntervals);
@@ -412,17 +478,27 @@ var timeBars = (function() {
   }
 
   function abortPendingRequests() {
-    if (currentRequest) {
-      currentRequest.abort();
-      currentRequest = null;
+    fetchGeneration += 1;
+    function abortOne(req) {
+      if (req && req.abort) {
+        req.abort();
+      }
     }
-    if (filteredRequest) {
-      filteredRequest.abort();
-      filteredRequest = null;
+    if (Array.isArray(currentRequest)) {
+      currentRequest.forEach(abortOne);
+    } else if (currentRequest) {
+      abortOne(currentRequest);
     }
+    currentRequest = null;
+    if (Array.isArray(filteredRequest)) {
+      filteredRequest.forEach(abortOne);
+    } else if (filteredRequest) {
+      abortOne(filteredRequest);
+    }
+    filteredRequest = null;
   }
 
-  function buildQuickdivUrl(skipTimeFilter) {
+  function buildQuickdivUrl(skipTimeFilter, reso) {
     var bounds = getMapBounds();
     var url = paleo_nav.dataUrl + paleo_nav.dataService + "/occs/quickdiv.json?";
     url = skipTimeFilter
@@ -432,8 +508,35 @@ var timeBars = (function() {
       "&lngmax=" + bounds.ne.lng.toFixed(1) +
       "&latmin=" + bounds.sw.lat.toFixed(1) +
       "&latmax=" + bounds.ne.lat.toFixed(1);
-    url += "&count=genera&time_reso=" + getQuickdivReso();
+    url += "&count=genera&time_reso=" + (reso || getQuickdivReso());
     return url;
+  }
+
+  function loadQuickdivLayers(skipTimeFilter, generation, callback) {
+    var resols = getQuickdivResolutions();
+    var remaining = resols.length;
+    var layers = new Array(resols.length);
+    var requests = [];
+
+    resols.forEach(function(reso, i) {
+      var req = d3.json(buildQuickdivUrl(skipTimeFilter, reso), function(error, data) {
+        if (generation !== fetchGeneration) {
+          return;
+        }
+        layers[i] = (!error && data && data.records) ? data.records : [];
+        remaining--;
+        if (remaining === 0) {
+          var merged = [];
+          layers.forEach(function(recs) {
+            merged = merged.concat(recs);
+          });
+          callback(merged);
+        }
+      });
+      requests.push(req);
+    });
+
+    return requests;
   }
 
   function mergeFilteredCounts(contextAgg, filteredAgg, intervals) {
@@ -567,26 +670,21 @@ var timeBars = (function() {
     abortPendingRequests();
     filteredSourceRecords = null;
 
-    var contextUrl = buildQuickdivUrl(true);
+    var generation = fetchGeneration;
     var needsFiltered = RESCALE_ON_TIME_FILTER && !!getTimeFilterId();
 
-    currentRequest = d3.json(contextUrl, function(error, data) {
+    currentRequest = loadQuickdivLayers(true, generation, function(records) {
       currentRequest = null;
-      if (error) {
-        return;
-      }
-      sourceRecords = data.records || [];
+      sourceRecords = records || [];
 
       if (!needsFiltered) {
         setData(sourceRecords);
         return;
       }
 
-      filteredRequest = d3.json(buildQuickdivUrl(false), function(filterError, filterData) {
+      filteredRequest = loadQuickdivLayers(false, generation, function(filterRecords) {
         filteredRequest = null;
-        if (!filterError) {
-          filteredSourceRecords = filterData.records || [];
-        }
+        filteredSourceRecords = filterRecords || [];
         draw();
         setTimeout(draw, 100);
         setTimeout(draw, 850);
@@ -617,8 +715,13 @@ var timeBars = (function() {
     var merged = mergeFilteredCounts(aggregated, filteredAgg, intervals);
     var counts = merged.counts;
     var rates = merged.rates;
-    // Optional filter: when set, only matching bars define the scale peak/bounds.
-    var scaleBarFilter = RESCALE_ON_TIME_FILTER && getTimeFilterId() ? isBarInTimeFilter : null;
+    // Scale from the current zoom (and optional time filter), not off-screen bars.
+    var scaleBarFilter = function(bar) {
+      if (RESCALE_ON_TIME_FILTER && getTimeFilterId() && !isBarInTimeFilter(bar)) {
+        return false;
+      }
+      return isBarUnderFocus(bar);
+    };
     var peak = maxValue(rates, intervals, scaleBarFilter);
 
     if (peak <= 0) {
@@ -635,9 +738,13 @@ var timeBars = (function() {
     var logBounds = LOG_SCALE ? nonZeroBounds(scaleValues, intervals, scaleBarFilter) : null;
 
     function barScaleHeight(value) {
-      return LOG_SCALE
+      if (!value || value <= 0) {
+        return 0;
+      }
+      var height = LOG_SCALE
         ? scaleToFullHeightLog(value, logBounds)
         : scaleToFullHeightLinear(value, peak);
+      return Math.max(MIN_BAR_HEIGHT, height);
     }
 
     var group = d3.select(".timeBarsGroup"),
