@@ -85,10 +85,16 @@ var navMap = (function () {
     typeaheadDropdownPadding: 21
   };
 
+  // When true, keep the Natural Earth projection for the world view plus the
+  // first two zoom-ins, then switch to Carto tiles. When false, stay on the
+  // projected SVG map at all zoom levels.
+  var USE_PROJECTED_THEN_CARTO = true;
+
   var ZOOM = {
     minScale: 1,
     maxScale: 32,
     zoomFactor: 1.5,
+    projectedZoomLevels: 2,
     dataRefreshDebounceMs: 300,
     detailGlobalMax: 2.5,
     detailRegionalMax: 4,
@@ -108,7 +114,8 @@ var navMap = (function () {
     svgZoomBehavior,
     svgZoomScale = ZOOM.minScale,
     svgZoomTranslate = [0, 0],
-    svgRefreshTimer;
+    svgRefreshTimer,
+    switchingMaps = false;
 
   var projection = d3.geo.naturalEarth()
     .scale(baseProjectionScale)
@@ -297,7 +304,14 @@ var navMap = (function () {
 
   function svgZoomBy(factor) {
     var center = svgZoomCenter(),
-      newScale = Math.max(ZOOM.minScale, Math.min(ZOOM.maxScale, svgZoomScale * factor)),
+      requestedScale = svgZoomScale * factor;
+
+    if (USE_PROJECTED_THEN_CARTO && factor > 1 && requestedScale > getMaxProjectedScale()) {
+      switchToCartoTilesFromView();
+      return;
+    }
+
+    var newScale = Math.max(ZOOM.minScale, Math.min(getMaxSvgScale(), requestedScale)),
       newTranslate = constrainMapTranslate(newScale, [
         center[0] - (center[0] - svgZoomTranslate[0]) * (newScale / svgZoomScale),
         center[1] - (center[1] - svgZoomTranslate[1]) * (newScale / svgZoomScale)
@@ -388,6 +402,127 @@ var navMap = (function () {
     return Math.min(ZOOM.maxScale, ZOOM.minScale + (z - ZOOM.leafletCompatBase) * ZOOM.leafletCompatScalePerLevel);
   }
 
+  function getMaxProjectedScale() {
+    return ZOOM.minScale * Math.pow(ZOOM.zoomFactor, ZOOM.projectedZoomLevels);
+  }
+
+  function getMaxSvgScale() {
+    return USE_PROJECTED_THEN_CARTO ? getMaxProjectedScale() : ZOOM.maxScale;
+  }
+
+  function getCartoMinZoom() {
+    return ZOOM.leafletCompatBase + ZOOM.projectedZoomLevels + 1;
+  }
+
+  function svgPointToLngLat(sx, sy, scale, translate) {
+    scale = scale != null ? scale : svgZoomScale;
+    translate = translate || svgZoomTranslate;
+    return projection.invert([
+      (sx - translate[0]) / scale,
+      (sy - translate[1]) / scale
+    ]);
+  }
+
+  function lngLatFromPoint(ll) {
+    if (ll && !isNaN(ll[0]) && !isNaN(ll[1])) {
+      return { lat: ll[1], lng: ll[0] };
+    }
+    return { lat: 7, lng: 0 };
+  }
+
+  function getSvgViewCenter() {
+    var size = getSvgContainerSize();
+    return lngLatFromPoint(svgPointToLngLat(size.width / 2, size.height / 2));
+  }
+
+  function lngLatFromZoomEvent() {
+    var source = d3.event && d3.event.sourceEvent,
+      size = getSvgContainerSize(),
+      sx = size.width / 2,
+      sy = size.height / 2,
+      svgNode = d3.select("#svgMap svg").node();
+
+    if (source && source.clientX != null && svgNode && svgNode.getBoundingClientRect) {
+      var rect = svgNode.getBoundingClientRect();
+      sx = source.clientX - rect.left;
+      sy = source.clientY - rect.top;
+    }
+
+    return lngLatFromPoint(svgPointToLngLat(
+      sx,
+      sy,
+      d3.event.scale,
+      d3.event.translate
+    ));
+  }
+
+  function isLeafletVisible() {
+    return parseInt(d3.select("#map").style("height"), 10) > 1;
+  }
+
+  function switchToCartoTiles(lat, lng, zoom) {
+    if (switchingMaps) {
+      return;
+    }
+    switchingMaps = true;
+
+    paleo_nav.getPrevalence();
+
+    d3.select("#svgMap").style("display", "none");
+    d3.select("#map").style("height", "100%");
+
+    if (map.options) {
+      map.options.minZoom = getCartoMinZoom();
+    }
+
+    var targetZoom = zoom != null ? zoom : getCartoMinZoom();
+    map.setView([lat, lng], targetZoom, { animate: false });
+
+    var newBounds = map.getBounds();
+    if (Math.abs(newBounds._northEast.lng) + Math.abs(newBounds._southWest.lng) > 360) {
+      map.setZoom(Math.max(targetZoom + 1, getCartoMinZoom()), { animate: false });
+    }
+
+    navMap.refresh("reset");
+    map.invalidateSize();
+    if (typeof timeBars !== "undefined") {
+      timeBars.resize();
+    }
+
+    switchingMaps = false;
+  }
+
+  function switchToCartoTilesFromView() {
+    var center = (d3.event && d3.event.scale != null)
+      ? lngLatFromZoomEvent()
+      : getSvgViewCenter();
+    switchToCartoTiles(center.lat, center.lng);
+  }
+
+  function switchToProjectedMap() {
+    if (switchingMaps) {
+      return;
+    }
+    switchingMaps = true;
+
+    var center = (map && map.getCenter) ? map.getCenter() : { lat: 7, lng: 0 };
+
+    d3.select("#map").style("height", 0);
+    d3.select("#svgMap").style("display", "block");
+
+    svgZoomScale = getMaxProjectedScale();
+    if (svgZoomBehavior) {
+      svgZoomBehavior.scale(svgZoomScale);
+    }
+    navMap.focusOnPoint(center.lat, center.lng);
+    navMap.refresh("reset");
+    if (typeof timeBars !== "undefined") {
+      timeBars.resize();
+    }
+
+    switchingMaps = false;
+  }
+
   // Load the partials once
   var binModalPartial,
     collectionModalPartial,
@@ -402,9 +537,9 @@ var navMap = (function () {
       // Init the leaflet map
       map = new L.Map('map', {
         center: new L.LatLng(7, 0),
-        zoom: 2,
+        zoom: USE_PROJECTED_THEN_CARTO ? getCartoMinZoom() : 2,
         maxZoom: 38,
-        minZoom: 2,
+        minZoom: USE_PROJECTED_THEN_CARTO ? getCartoMinZoom() : 2,
         zoomControl: false,
         inertiaDeceleration: 6000,
         inertiaMaxSpeed: 1000,
@@ -412,11 +547,11 @@ var navMap = (function () {
       });
 
       var cartoAttrib = '© OpenStreetMap contributors, © CARTO';
-      var cartoVoyager = new L.TileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+      cartoVoyager = new L.TileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
         attribution: cartoAttrib
       }).addTo(map); // Add Voyager as the default tile layer
 
-      var cartoVoyagerLabels = new L.TileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels/{z}/{x}/{y}.png', {
+      cartoVoyagerLabels = new L.TileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels/{z}/{x}/{y}.png', {
         attribution: cartoAttrib
       });
 
@@ -428,6 +563,19 @@ var navMap = (function () {
       //stamenLabels = new L.TileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {attribution: attrib});
 
       function mapSelection(zoom) {
+        if (switchingMaps) {
+          return;
+        }
+
+        if (USE_PROJECTED_THEN_CARTO) {
+          if (zoom < getCartoMinZoom()) {
+            switchToProjectedMap();
+            return;
+          }
+          navMap.refresh();
+          return;
+        }
+
         // If viewing the projected map...
         var newBounds = map.getBounds();
 	  while ( newBounds._northEast.lng > 180 ) 
@@ -458,7 +606,7 @@ var navMap = (function () {
       map.on("moveend", function (event) {
         // event.hard = true when map is adjusted programatically
         // Don't fire if adjusted programatically
-        if (event.hard || parseInt(d3.select("#map").style("height")) < 2) {
+        if (switchingMaps || event.hard || parseInt(d3.select("#map").style("height")) < 2) {
           return;
         } else {
           mapSelection(map.getZoom());
@@ -468,12 +616,37 @@ var navMap = (function () {
       });
 
       map.on("zoomend", function () {
+        if (switchingMaps || parseInt(d3.select("#map").style("height")) < 2) {
+          return;
+        }
         d3.select(".leaflet-zoom-hide").style("visibility", "hidden");
         // See if labels should be applied or not
         navMap.selectBaseMap(map.getZoom());
 
         mapSelection(map.getZoom());
       });
+
+      function handleCartoWheelOut(event) {
+        if (!USE_PROJECTED_THEN_CARTO || switchingMaps || !isLeafletVisible()) {
+          return;
+        }
+        var delta = event.deltaY != null ? event.deltaY : -event.wheelDelta;
+        if (delta > 0 && map.getZoom() <= getCartoMinZoom()) {
+          if (event.preventDefault) {
+            event.preventDefault();
+          }
+          if (event.stopPropagation) {
+            event.stopPropagation();
+          }
+          switchToProjectedMap();
+        }
+      }
+
+      if (map.getContainer && map.getContainer()) {
+        var mapContainerEl = map.getContainer();
+        mapContainerEl.addEventListener("wheel", handleCartoWheelOut, true);
+        mapContainerEl.addEventListener("mousewheel", handleCartoWheelOut, true);
+      }
 
       // Get map ready for an SVG layer
       map._initPathRoot();
@@ -493,7 +666,17 @@ var navMap = (function () {
       svgZoomBehavior = d3.behavior.zoom()
         .scaleExtent([ZOOM.minScale, ZOOM.maxScale])
         .on("zoom", function () {
-          svgZoomScale = d3.event.scale;
+          var requestedScale = d3.event.scale;
+          if (USE_PROJECTED_THEN_CARTO && requestedScale > getMaxProjectedScale()) {
+            var center = lngLatFromZoomEvent();
+            svgZoomScale = getMaxProjectedScale();
+            svgZoomTranslate = constrainMapTranslate(svgZoomScale, d3.event.translate, getSvgContainerSize(), ZOOM.minScale);
+            svgZoomBehavior.scale(svgZoomScale).translate(svgZoomTranslate);
+            applySvgViewportTransform();
+            switchToCartoTiles(center.lat, center.lng);
+            return;
+          }
+          svgZoomScale = requestedScale;
           svgZoomTranslate = constrainMapTranslate(svgZoomScale, d3.event.translate, getSvgContainerSize(), ZOOM.minScale);
           svgZoomBehavior.translate(svgZoomTranslate);
           applySvgViewportTransform();
@@ -571,7 +754,11 @@ var navMap = (function () {
       if (isSvgMapActive()) {
         svgZoomBy(1 / ZOOM.zoomFactor);
       } else if (map) {
-        map.zoomOut();
+        if (USE_PROJECTED_THEN_CARTO && map.getZoom() <= getCartoMinZoom()) {
+          switchToProjectedMap();
+        } else {
+          map.zoomOut();
+        }
       }
     },
 
@@ -604,38 +791,21 @@ var navMap = (function () {
     },
 
     "changeMaps": function (mouse) {
-      paleo_nav.getPrevalence();
-
-      var timeHeight = getTimeScaleHeight(),
-        translate = [window.innerWidth / 2, (window.innerHeight - timeHeight - LAYOUT.leafletMapTopChrome) / 2];
-
-      var mercator = d3.geo.mercator()
-        .scale(baseProjectionScale)
-        .precision(.1)
-        .translate(translate);
-
-      var coords = mouse,
-        projected = mercator.invert(coords);
-
-      d3.select("#svgMap").style("display", "none");
-      d3.select("#map").style("height", "100%");
-
-      map.setView([parseInt(projected[1]), parseInt(projected[0])], 3, { animate: false });
-
-      var newBounds = map.getBounds();
-      if (Math.abs(newBounds._northEast.lng) + Math.abs(newBounds._southWest.lng) > 360) {
-        map.setZoom(4, { animate: false });
+      var center;
+      if (mouse) {
+        center = lngLatFromPoint(svgPointToLngLat(mouse[0], mouse[1]));
+      } else {
+        center = getSvgViewCenter();
       }
-
-      navMap.refresh("reset");
-      map.invalidateSize();
-      if (typeof timeBars !== "undefined") {
-        timeBars.resize();
-      }
+      switchToCartoTiles(center.lat, center.lng);
     },
 
     // Given a [lat,lng] and a zoom level, adjust the map
     "goTo": function (coords, zoom) {
+      if (USE_PROJECTED_THEN_CARTO && zoom && leafletZoomToSvgScale(zoom) > getMaxProjectedScale()) {
+        switchToCartoTiles(coords[0], coords[1], Math.max(zoom, getCartoMinZoom()));
+        return;
+      }
       d3.select("#svgMap").style("display", "block");
       d3.select("#map").style("height", 0);
       navMap.focusOnPoint(coords[0], coords[1], zoom);
@@ -1953,12 +2123,14 @@ var navMap = (function () {
   },
 
   "resize": function() {
-    d3.select("#svgMap").style("display", "block");
+    var leafletWasActive = isLeafletVisible() &&
+      d3.select("#svgMap").style("display") === "none";
 
-    if (isLeafletMapActive()) {
+    if (leafletWasActive) {
       d3.select("#map").style("height", "100%");
       map.invalidateSize();
     } else {
+      d3.select("#svgMap").style("display", "block");
       d3.select("#map").style("height", 0);
     }
 
