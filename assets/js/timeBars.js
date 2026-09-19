@@ -760,7 +760,12 @@ var timeBars = (function() {
       });
 
     bars.attr("class", function(d) {
-        return isBarInTimeFilter(d) ? "timeBar" : "timeBar timeBar--outside";
+        var value = useRates ? (rates[String(d.id)] || 0) : (counts[String(d.id)] || 0);
+        var classes = isBarInTimeFilter(d) ? "timeBar" : "timeBar timeBar--outside";
+        if (value > 0 && barScaleHeight(value) <= MIN_BAR_HEIGHT) {
+          classes += " timeBar--min";
+        }
+        return classes;
       })
       .attr("x", function(d) {
         var value = useRates ? (rates[String(d.id)] || 0) : (counts[String(d.id)] || 0);
