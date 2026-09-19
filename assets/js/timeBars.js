@@ -155,12 +155,14 @@ var timeBars = (function() {
     return "period";
   }
 
-  // Stage/epoch requests omit Precambrian: those eons have no ages. Also
-  // fetch coarser bins so Proterozoic periods and Archean eras are counted.
+  // Stage requests omit intervals that have no ages (Pridoli, Precambrian).
+  // Also fetch coarser bins so those leaves still get counts.
   function getQuickdivResolutions() {
     var primary = getQuickdivReso();
     var resols = [primary];
-    if (primary === "stage" || primary === "epoch") {
+    if (primary === "stage") {
+      resols.push("epoch", "period", "era");
+    } else if (primary === "epoch") {
       resols.push("period", "era");
     } else if (primary === "period") {
       resols.push("era");
