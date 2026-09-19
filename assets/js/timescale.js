@@ -375,13 +375,29 @@ var timeScale = (function() {
     return (rectY * 0.8) + (rectHeight - labelHeight) / 2;
   }
 
+  function intervalByName(name) {
+    var id;
+    for (id in interval_hash) {
+      if (interval_hash[id] && interval_hash[id].name === name) {
+        return interval_hash[id];
+      }
+    }
+    return null;
+  }
+
+  function timescaleRectByName(name) {
+    return d3.selectAll(".timeScale rect").filter(function(e) {
+      return e && e.name === name;
+    });
+  }
+
   function mapFilter(d) {
     // If the interval clicked on is already the selected filter, ignore
     if (d.id === navMap.filters.selectedInterval.oid) {
       return;
     }
 
-    highlight(d.name);
+    highlight(d);
 
     if (reconstructMap.visible) {
       var requestYear = parseInt((d.early_age + d.late_age) / 2);
@@ -410,10 +426,7 @@ var timeScale = (function() {
   // Zooms the graph to a given time interval
   function goTo(d, first) {
     if (typeof d === "string") {
-      var d = d3.selectAll('rect').filter(function(e) {
-        return e.name === d;
-      });
-      d = d[0][0].__data__;
+      d = intervalByName(d) || timescaleRectByName(d).datum();
     } else if (d.children) {
       if (d.children.length < 1) {
         var d = d.parent;
@@ -543,10 +556,10 @@ var timeScale = (function() {
     if (d.cxi) {
       id = d.cxi;
     } else if (typeof d == "string") {
-      id = d3.selectAll('rect').filter(function(e) {
-        return e.name === d;
-      }).attr("id");
-      id = id.replace("t", "");
+      var named = intervalByName(d);
+      id = named ? named.id : null;
+    } else if (d && d.id != null) {
+      id = d.id;
     } else {
       id = d3.select(d).attr("id");
       if (id) {
@@ -566,7 +579,7 @@ var timeScale = (function() {
 
   // Unhighlight a time interval by resetting the stroke of all rectangles
   function unhighlight(d) {
-    d3.selectAll("rect").style("stroke", "#fff");
+    d3.selectAll(".timeScale rect").style("stroke", "#fff");
   }
 
   function resize() {

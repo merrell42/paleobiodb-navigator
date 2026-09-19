@@ -2354,11 +2354,25 @@ var navMap = (function () {
   "filterByTime": function(time) {
     filtersPanel.recordFilterChange();
 
-    // accepts a named time interval
-    var d = d3.selectAll('rect').filter(function (e) {
-      return e.name === time;
-    });
-    d = d[0][0].__data__;
+    var d = null;
+    if (typeof timeScale !== "undefined" && timeScale.interval_hash) {
+      var id;
+      for (id in timeScale.interval_hash) {
+        if (timeScale.interval_hash[id] && timeScale.interval_hash[id].name === time) {
+          d = timeScale.interval_hash[id];
+          break;
+        }
+      }
+    }
+    if (!d) {
+      var selection = d3.selectAll(".timeScale rect").filter(function (e) {
+        return e && e.name === time;
+      });
+      d = selection[0][0] && selection[0][0].__data__;
+    }
+    if (!d) {
+      return;
+    }
     filters.selectedInterval.nam = d.name;
     filters.selectedInterval.mid = d.mid;
     filters.selectedInterval.col = d.color;
