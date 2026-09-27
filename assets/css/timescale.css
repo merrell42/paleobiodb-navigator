@@ -31,6 +31,10 @@
   width: 100%;
   pointer-events: none;
 }
+.timeBars .timeBarsBackground {
+  fill: #fff;
+  pointer-events: none;
+}
 .timeBars .timeBar {
   fill: rgba(70, 70, 70, 0.82);
   stroke: rgba(255, 255, 255, 0.55);

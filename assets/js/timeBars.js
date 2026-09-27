@@ -641,21 +641,6 @@ var timeBars = (function() {
     return ((Math.log(clamped) - logMin) / (logMax - logMin)) * maxHeight;
   }
 
-  function updateBackgroundBand() {
-    var band = d3.select(".timeBarsBackgroundBand");
-    var svg = d3.select(".timeBars svg");
-    if (band.empty() || svg.empty()) {
-      return;
-    }
-
-    var svgHeight = parseFloat(svg.style("height"), 10);
-    if (!svgHeight) {
-      svgHeight = Math.ceil(barHeight * getLayoutScale(getContainerWidth()));
-    }
-
-    band.style("height", Math.ceil(svgHeight * (barHeight - 4) / barHeight) + "px");
-  }
-
   function init() {
     if (d3.select("#timeBars").empty()) {
       return;
@@ -663,13 +648,18 @@ var timeBars = (function() {
 
     d3.select("#timeBars").attr("class", "timeBars");
 
-    d3.select("#timeBars").append("div")
-      .attr("class", "timeBarsBackgroundBand");
-
-    d3.select("#timeBars").append("svg:svg")
+    var svg = d3.select("#timeBars").append("svg:svg")
       .attr("width", layoutWidth)
-      .attr("height", barHeight)
-      .append("g")
+      .attr("height", barHeight);
+
+    svg.append("rect")
+      .attr("class", "timeBarsBackground")
+      .attr("x", 0)
+      .attr("y", 4)
+      .attr("width", layoutWidth)
+      .attr("height", barHeight - 4);
+
+    svg.append("g")
       .attr("class", "timeBarsGroup");
 
     resize();
@@ -852,7 +842,6 @@ var timeBars = (function() {
     svg.style("width", containerWidth + "px")
       .style("height", Math.ceil(barHeight * scale) + "px");
 
-    updateBackgroundBand();
     syncTransform();
     draw();
   }
