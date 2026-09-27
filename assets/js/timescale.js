@@ -463,7 +463,7 @@ var timeScale = (function() {
       .style("display", "block");
 
     // When complete, calls labelTrans() 
-    d3.selectAll("rect").transition()
+    d3.selectAll(".timeScale #rectGroup rect").transition()
       .duration(750)
       .each(function(){ ++n; })
       .attr("x", function(d) { return x(d.x); })

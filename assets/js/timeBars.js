@@ -648,10 +648,18 @@ var timeBars = (function() {
 
     d3.select("#timeBars").attr("class", "timeBars");
 
-    d3.select("#timeBars").append("svg:svg")
+    var svg = d3.select("#timeBars").append("svg:svg")
       .attr("width", layoutWidth)
-      .attr("height", barHeight)
-      .append("g")
+      .attr("height", barHeight);
+
+    svg.append("rect")
+      .attr("class", "timeBarsBackground")
+      .attr("x", 0)
+      .attr("y", 4)
+      .attr("width", layoutWidth)
+      .attr("height", barHeight - 4);
+
+    svg.append("g")
       .attr("class", "timeBarsGroup");
 
     resize();
