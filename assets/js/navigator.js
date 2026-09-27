@@ -237,7 +237,7 @@ var paleo_nav = (function() {
           case "int":
             timeScale.goTo($suggestion.attr("data-nam"));
             navMap.filterByTime($suggestion.attr("data-nam"));
-            navMap.refresh("reset");
+            navMap.refresh("reset", { refreshTimeBars: true });
             break;
           case "str":
             var rock = {"nam": $suggestion.attr("data-nam"), "type": $suggestion.attr("data-rnk")};

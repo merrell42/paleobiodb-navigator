@@ -415,11 +415,11 @@ var timeScale = (function() {
       navMap.filters.exist.selectedInterval = true;
 
       navMap.updateFilterList("selectedInterval");
-      navMap.refresh("reset");
+      navMap.refresh("reset", { refreshTimeBars: true });
       reconstructMap.rotate(d, true);
     } else {
       navMap.filterByTime(d.name);
-      navMap.refresh("reset");
+      navMap.refresh("reset", { refreshTimeBars: true });
     }
   }
 

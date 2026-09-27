@@ -116,7 +116,8 @@ var navMap = (function () {
     svgZoomTranslate = [0, 0],
     svgRefreshTimer,
     switchingMaps = false,
-    wheelAccum = 0;
+    wheelAccum = 0,
+    pendingTimeBarsRefresh = false;
 
   var projection = d3.geo.naturalEarth()
     .scale(baseProjectionScale)
@@ -198,8 +199,9 @@ var navMap = (function () {
   function updateFiltersPanelSummary(data) {
     if (data) {
       filtersPanel.summarize(data, filters.exist, LAYOUT, getTimeScaleHeight);
-      if (typeof timeBars !== "undefined") {
+      if (pendingTimeBarsRefresh && typeof timeBars !== "undefined") {
         timeBars.refresh();
+        pendingTimeBarsRefresh = false;
       }
     } else {
       filtersPanel.setInfoSummary(filters.exist, LAYOUT, getTimeScaleHeight);
@@ -957,7 +959,10 @@ var navMap = (function () {
       }
     },
 
-    "refresh": function(reset) {
+    "refresh": function(reset, opts) {
+      if (opts && opts.refreshTimeBars) {
+        pendingTimeBarsRefresh = true;
+      }
       paleo_nav.showLoading();
 
       if ((prevzoom - map.getZoom()) != 0) {
@@ -2347,7 +2352,7 @@ var navMap = (function () {
       if (d3.select("#reconstructMap").style("display") === "block") {
         reconstructMap.rotate(filters.selectedInterval);
       } else {
-        navMap.refresh("reset");
+        navMap.refresh("reset", { refreshTimeBars: true });
       }
 
     });
@@ -2370,7 +2375,7 @@ var navMap = (function () {
       if (d3.select("#reconstructMap").style("display") === "block") {
         reconstructMap.rotate(navMap.filters.selectedInterval);
       } else {
-        navMap.refresh("reset");
+        navMap.refresh("reset", { refreshTimeBars: true });
       }
     }
   },
@@ -2598,7 +2603,7 @@ var navMap = (function () {
           if (d3.select("#reconstructMap").style("display") === "block") {
             reconstructMap.rotate(navMap.filters.selectedInterval);
           } else {
-            navMap.refresh("reset");
+            navMap.refresh("reset", { refreshTimeBars: true });
           }
         } else {
           alert("No taxa with this name found");
@@ -2622,7 +2627,7 @@ var navMap = (function () {
       if (d3.select("#reconstructMap").style("display") === "block") {
         reconstructMap.rotate(filters.selectedInterval);
       } else {
-        navMap.refresh("reset");
+        navMap.refresh("reset", { refreshTimeBars: true });
       }
     }
   },
@@ -2639,7 +2644,7 @@ var navMap = (function () {
       if (d3.select("#reconstructMap").style("display") === "block") {
         reconstructMap.rotate(filters.selectedInterval);
       } else {
-        navMap.refresh("reset");
+        navMap.refresh("reset", { refreshTimeBars: true });
       }
     }
   },
@@ -2657,7 +2662,7 @@ var navMap = (function () {
       if (d3.select("#reconstructMap").style("display") === "block") {
         reconstructMap.rotate(filters.selectedInterval);
       } else {
-        navMap.refresh("reset");
+        navMap.refresh("reset", { refreshTimeBars: true });
       }
     }      
   },
@@ -2671,7 +2676,7 @@ var navMap = (function () {
 	filters.stratigraphy.name = rock.nam;
 	filters.stratigraphy.rank = (rock.type) ? rock.type : rock.rank;
 	navMap.updateFilterList("stratigraphy");
-	navMap.refresh("reset");
+	navMap.refresh("reset", { refreshTimeBars: true });
     }
   },
 
@@ -3005,7 +3010,7 @@ var navMap = (function () {
     if (d3.select("#reconstructMap").style("display") === "block") {
       reconstructMap.rotate(filters.selectedInterval);
     } else {
-      navMap.refresh("reset");
+      navMap.refresh("reset", { refreshTimeBars: true });
     }
   },
 

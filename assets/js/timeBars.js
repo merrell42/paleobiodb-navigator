@@ -171,21 +171,10 @@ var timeBars = (function() {
   }
 
   function getMapBounds() {
-    var sw = { lng: -180, lat: -90 },
-        ne = { lng: 180, lat: 90 };
-
-    if (typeof map !== "undefined" && map && map.getBounds) {
-      var bounds = map.getBounds();
-      sw = bounds.getSouthWest();
-      ne = bounds.getNorthEast();
-    }
-
-    if (parseInt(d3.select("#map").style("height"), 10) < 1) {
-      sw = { lng: -180, lat: -90 };
-      ne = { lng: 180, lat: 90 };
-    }
-
-    return { sw: sw, ne: ne };
+    return {
+      sw: { lng: -180, lat: -90 },
+      ne: { lng: 180, lat: 90 }
+    };
   }
 
   function isQuickdivData(records) {
@@ -776,7 +765,7 @@ var timeBars = (function() {
       .attr("class", "timeBar")
       .on("click", function(d) {
         navMap.filterByTime(d.name);
-        navMap.refresh("reset");
+        navMap.refresh("reset", { refreshTimeBars: true });
       });
 
     bars.attr("class", function(d) {
