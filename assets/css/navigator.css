@@ -321,6 +321,14 @@ nav {
   pointer-events: none;
   overflow: hidden;
 }
+#mapContainer .timeBarsBackgroundBand {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #fff;
+  pointer-events: none;
+}
 #map {
   width:100%;
   height: 0;
