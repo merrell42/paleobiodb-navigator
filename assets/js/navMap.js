@@ -78,7 +78,7 @@ var navMap = (function () {
     mobileBreakpointWidth: 468,
     filtersWideLayoutMinHeight: 600,
     filtersSidebarWidth: 49,
-    filtersBottomGutter: 21,
+    filtersBottomGutter: 26,
     filtersPanelLeftGutter: 6,
     prevalencePanelChrome: 121,
     helpModalLabelOffset: 78,
