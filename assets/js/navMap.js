@@ -834,22 +834,12 @@ var navMap = (function () {
     //   }
     // },
 
-    "selectBaseMap": function (zoom) {
-      if (zoom < 5) {
-        if (map.hasLayer(cartoVoyagerLabels)) {
-          map.removeLayer(cartoVoyagerLabels);
-          map.addLayer(cartoVoyager);
-        }
-      } else if (zoom > 4 && zoom < 7) {
-        if (map.hasLayer(cartoVoyagerLabels)) {
-          map.removeLayer(cartoVoyagerLabels);
-          map.addLayer(cartoVoyager);
-        }
-      } else if (map.hasLayer(cartoVoyager)) {
-        map.removeLayer(cartoVoyager);
-      } else if (map.hasLayer(cartoVoyagerLabels)) {
-        map.addLayer(cartoVoyagerLabels);
-        map.removeLayer(cartoVoyager);
+    "selectBaseMap": function () {
+      if (map.hasLayer(cartoVoyagerLabels)) {
+        map.removeLayer(cartoVoyagerLabels);
+      }
+      if (!map.hasLayer(cartoVoyager)) {
+        map.addLayer(cartoVoyager);
       }
     },
 
