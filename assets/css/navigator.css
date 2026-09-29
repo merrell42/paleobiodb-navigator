@@ -321,6 +321,20 @@ nav {
   pointer-events: none;
   overflow: hidden;
 }
+#mapContainer .timeBarsBackgroundBand {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  background: #fff;
+  border-top: 1px solid #ccc;
+  pointer-events: none;
+}
+#mapContainer .timeBars svg {
+  position: relative;
+  z-index: 1;
+}
 #map {
   width:100%;
   height: 0;

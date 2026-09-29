@@ -415,11 +415,11 @@ var timeScale = (function() {
       navMap.filters.exist.selectedInterval = true;
 
       navMap.updateFilterList("selectedInterval");
-      navMap.refresh("reset");
+      navMap.refresh("reset", { refreshTimeBars: true });
       reconstructMap.rotate(d, true);
     } else {
       navMap.filterByTime(d.name);
-      navMap.refresh("reset");
+      navMap.refresh("reset", { refreshTimeBars: true });
     }
   }
 
@@ -463,7 +463,7 @@ var timeScale = (function() {
       .style("display", "block");
 
     // When complete, calls labelTrans() 
-    d3.selectAll("rect").transition()
+    d3.selectAll(".timeScale #rectGroup rect").transition()
       .duration(750)
       .each(function(){ ++n; })
       .attr("x", function(d) { return x(d.x); })
