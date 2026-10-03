@@ -171,21 +171,10 @@ var timeBars = (function() {
   }
 
   function getMapBounds() {
-    var sw = { lng: -180, lat: -90 },
-        ne = { lng: 180, lat: 90 };
-
-    if (typeof map !== "undefined" && map && map.getBounds) {
-      var bounds = map.getBounds();
-      sw = bounds.getSouthWest();
-      ne = bounds.getNorthEast();
-    }
-
-    if (parseInt(d3.select("#map").style("height"), 10) < 1) {
-      sw = { lng: -180, lat: -90 };
-      ne = { lng: 180, lat: 90 };
-    }
-
-    return { sw: sw, ne: ne };
+    return {
+      sw: { lng: -180, lat: -90 },
+      ne: { lng: 180, lat: 90 }
+    };
   }
 
   function isQuickdivData(records) {
@@ -641,12 +630,30 @@ var timeBars = (function() {
     return ((Math.log(clamped) - logMin) / (logMax - logMin)) * maxHeight;
   }
 
+  function updateBackgroundBand() {
+    var band = d3.select(".timeBarsBackgroundBand");
+    var svg = d3.select(".timeBars svg");
+    if (band.empty() || svg.empty()) {
+      return;
+    }
+
+    var svgHeight = parseFloat(svg.style("height"), 10);
+    if (!svgHeight) {
+      svgHeight = Math.ceil(barHeight * getLayoutScale(getContainerWidth()));
+    }
+
+    band.style("height", Math.ceil(svgHeight * (barHeight - 4) / barHeight) + "px");
+  }
+
   function init() {
     if (d3.select("#timeBars").empty()) {
       return;
     }
 
     d3.select("#timeBars").attr("class", "timeBars");
+
+    d3.select("#timeBars").append("div")
+      .attr("class", "timeBarsBackgroundBand");
 
     d3.select("#timeBars").append("svg:svg")
       .attr("width", layoutWidth)
@@ -758,7 +765,7 @@ var timeBars = (function() {
       .attr("class", "timeBar")
       .on("click", function(d) {
         navMap.filterByTime(d.name);
-        navMap.refresh("reset");
+        navMap.refresh("reset", { refreshTimeBars: true });
       });
 
     bars.attr("class", function(d) {
@@ -834,6 +841,7 @@ var timeBars = (function() {
     svg.style("width", containerWidth + "px")
       .style("height", Math.ceil(barHeight * scale) + "px");
 
+    updateBackgroundBand();
     syncTransform();
     draw();
   }

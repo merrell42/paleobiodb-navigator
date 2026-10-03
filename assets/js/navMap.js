@@ -78,7 +78,7 @@ var navMap = (function () {
     mobileBreakpointWidth: 468,
     filtersWideLayoutMinHeight: 600,
     filtersSidebarWidth: 49,
-    filtersBottomGutter: 21,
+    filtersBottomGutter: 26,
     filtersPanelLeftGutter: 6,
     prevalencePanelChrome: 121,
     helpModalLabelOffset: 78,
@@ -117,7 +117,9 @@ var navMap = (function () {
     svgZoomScale = ZOOM.minScale,
     svgZoomTranslate = [0, 0],
     svgRefreshTimer,
-    switchingMaps = false;
+    switchingMaps = false,
+    wheelAccum = 0,
+    pendingTimeBarsRefresh = false;
 
   var projection = d3.geo.naturalEarth()
     .scale(baseProjectionScale)
@@ -199,8 +201,9 @@ var navMap = (function () {
   function updateFiltersPanelSummary(data) {
     if (data) {
       filtersPanel.summarize(data, filters.exist, LAYOUT, getTimeScaleHeight);
-      if (typeof timeBars !== "undefined") {
+      if (pendingTimeBarsRefresh && typeof timeBars !== "undefined") {
         timeBars.refresh();
+        pendingTimeBarsRefresh = false;
       }
     } else {
       filtersPanel.setInfoSummary(filters.exist, LAYOUT, getTimeScaleHeight);
@@ -304,20 +307,37 @@ var navMap = (function () {
     return [size.width / 2, size.height / 2];
   }
 
-  function svgZoomBy(factor) {
-    var center = svgZoomCenter(),
-      requestedScale = svgZoomScale * factor;
+  function mapPointer(event) {
+    var node = document.getElementById("mapContainer"),
+      size = getSvgContainerSize();
+    if (!node || !event) {
+      return [size.width / 2, size.height / 2];
+    }
+    var rect = node.getBoundingClientRect();
+    return [
+      rect.width ? (event.clientX - rect.left) * (size.width / rect.width) : size.width / 2,
+      rect.height ? (event.clientY - rect.top) * (size.height / rect.height) : size.height / 2
+    ];
+  }
+
+  function svgZoomBy(factor, anchor) {
+    var size = getSvgContainerSize();
+    if (!anchor) {
+      anchor = svgZoomCenter();
+    }
+    var requestedScale = svgZoomScale * factor;
 
     if (USE_PROJECTED_THEN_CARTO && factor > 1 && requestedScale > getMaxProjectedScale()) {
-      switchToCartoTilesFromView();
+      var ll = lngLatFromPoint(svgPointToLngLat(anchor[0], anchor[1]));
+      switchToCartoTiles(ll.lat, ll.lng);
       return;
     }
 
     var newScale = Math.max(ZOOM.minScale, Math.min(getMaxSvgScale(), requestedScale)),
       newTranslate = constrainMapTranslate(newScale, [
-        center[0] - (center[0] - svgZoomTranslate[0]) * (newScale / svgZoomScale),
-        center[1] - (center[1] - svgZoomTranslate[1]) * (newScale / svgZoomScale)
-      ], getSvgContainerSize(), ZOOM.minScale);
+        anchor[0] - (anchor[0] - svgZoomTranslate[0]) * (newScale / svgZoomScale),
+        anchor[1] - (anchor[1] - svgZoomTranslate[1]) * (newScale / svgZoomScale)
+      ], size, ZOOM.minScale);
 
     svgZoomScale = newScale;
     svgZoomTranslate = newTranslate;
@@ -326,6 +346,93 @@ var navMap = (function () {
     }
     applySvgViewportTransform();
     scheduleSvgRefresh();
+  }
+
+  function zoomLeafletAtCursor(event, delta) {
+    if (!map) {
+      return;
+    }
+    var point = map.mouseEventToContainerPoint(event),
+      current = map.getZoom();
+
+    if (USE_PROJECTED_THEN_CARTO && delta < 0 && current <= getCartoMinZoom()) {
+      var latlng = map.containerPointToLatLng(point);
+      switchToProjectedMap({
+        lat: latlng.lat,
+        lng: latlng.lng,
+        anchor: mapPointer(event)
+      });
+      return;
+    }
+
+    var next = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), current + delta));
+    if (next === current) {
+      return;
+    }
+    map.setZoomAround(point, next);
+  }
+
+  function applyWheelSteps(event, steps) {
+    var zoomingIn = steps < 0,
+      count = Math.abs(steps),
+      factor = zoomingIn ? ZOOM.zoomFactor : 1 / ZOOM.zoomFactor,
+      i;
+    for (i = 0; i < count; i++) {
+      if (isSvgMapActive()) {
+        var anchor = mapPointer(event);
+        if (USE_PROJECTED_THEN_CARTO && zoomingIn && svgZoomScale * ZOOM.zoomFactor > getMaxProjectedScale()) {
+          var ll = lngLatFromPoint(svgPointToLngLat(anchor[0], anchor[1]));
+          switchToCartoTiles(ll.lat, ll.lng, null, event);
+        } else {
+          svgZoomBy(factor, anchor);
+        }
+      } else if (isLeafletMapActive()) {
+        zoomLeafletAtCursor(event, zoomingIn ? 1 : -1);
+      }
+    }
+  }
+
+  // Same zoom depth as the buttons, but keep the point under the cursor fixed.
+  function handleMapWheel(event) {
+    if (typeof reconstructMap !== "undefined" && reconstructMap.visible) {
+      return;
+    }
+
+    var delta = event.deltaY;
+    if (delta == null) {
+      delta = event.wheelDelta != null ? -event.wheelDelta : 0;
+    }
+    if (!delta) {
+      return;
+    }
+    if (event.deltaMode === 1) {
+      delta *= 40;
+    } else if (event.deltaMode === 2) {
+      delta *= 800;
+    }
+
+    if (event.preventDefault) {
+      event.preventDefault();
+    }
+    if (event.stopPropagation) {
+      event.stopPropagation();
+    }
+
+    wheelAccum += delta;
+    var steps = 0;
+    while (wheelAccum <= -100 && steps > -4) {
+      wheelAccum += 100;
+      steps -= 1;
+    }
+    while (wheelAccum >= 100 && steps < 4) {
+      wheelAccum -= 100;
+      steps += 1;
+    }
+    if (!steps) {
+      return;
+    }
+
+    applyWheelSteps(event, steps);
   }
 
   function scheduleSvgRefresh() {
@@ -462,7 +569,7 @@ var navMap = (function () {
     return parseInt(d3.select("#map").style("height"), 10) > 1;
   }
 
-  function switchToCartoTiles(lat, lng, zoom) {
+  function switchToCartoTiles(lat, lng, zoom, pointerEvent) {
     if (switchingMaps) {
       return;
     }
@@ -472,6 +579,7 @@ var navMap = (function () {
 
     d3.select("#svgMap").style("display", "none");
     d3.select("#map").style("height", "100%");
+    map.invalidateSize();
 
     if (map.options) {
       map.options.minZoom = getCartoMinZoom();
@@ -483,6 +591,11 @@ var navMap = (function () {
     var newBounds = map.getBounds();
     if (Math.abs(newBounds._northEast.lng) + Math.abs(newBounds._southWest.lng) > 360) {
       map.setZoom(Math.max(targetZoom + 1, getCartoMinZoom()), { animate: false });
+    }
+
+    if (pointerEvent && map.mouseEventToContainerPoint) {
+      var fixedPoint = map.mouseEventToContainerPoint(pointerEvent);
+      map.panBy(map.getSize().divideBy(2).subtract(fixedPoint), { animate: false });
     }
 
     navMap.refresh("reset");
@@ -501,7 +614,7 @@ var navMap = (function () {
     switchToCartoTiles(center.lat, center.lng);
   }
 
-  function switchToProjectedMap() {
+  function switchToProjectedMap(focus) {
     if (switchingMaps) {
       return;
     }
@@ -513,10 +626,29 @@ var navMap = (function () {
     d3.select("#svgMap").style("display", "block");
 
     svgZoomScale = getMaxProjectedScale();
-    if (svgZoomBehavior) {
-      svgZoomBehavior.scale(svgZoomScale);
+    if (focus && focus.anchor && !isNaN(focus.lat) && !isNaN(focus.lng)) {
+      var pt = projection([focus.lng, focus.lat]);
+      if (pt) {
+        svgZoomTranslate = constrainMapTranslate(svgZoomScale, [
+          focus.anchor[0] - pt[0] * svgZoomScale,
+          focus.anchor[1] - pt[1] * svgZoomScale
+        ], getSvgContainerSize(), ZOOM.minScale);
+        if (svgZoomBehavior) {
+          svgZoomBehavior.scale(svgZoomScale).translate(svgZoomTranslate);
+        }
+        applySvgViewportTransform();
+      } else {
+        if (svgZoomBehavior) {
+          svgZoomBehavior.scale(svgZoomScale);
+        }
+        navMap.focusOnPoint(center.lat, center.lng);
+      }
+    } else {
+      if (svgZoomBehavior) {
+        svgZoomBehavior.scale(svgZoomScale);
+      }
+      navMap.focusOnPoint(center.lat, center.lng);
     }
-    navMap.focusOnPoint(center.lat, center.lng);
     navMap.refresh("reset");
     if (typeof timeBars !== "undefined") {
       timeBars.resize();
@@ -543,6 +675,7 @@ var navMap = (function () {
         maxZoom: ZOOM.cartoMaxZoom,
         minZoom: USE_PROJECTED_THEN_CARTO ? getCartoMinZoom() : 2,
         zoomControl: false,
+        scrollWheelZoom: false,
         inertiaDeceleration: 6000,
         inertiaMaxSpeed: 1000,
         zoomAnimationThreshold: 1
@@ -628,26 +761,9 @@ var navMap = (function () {
         mapSelection(map.getZoom());
       });
 
-      function handleCartoWheelOut(event) {
-        if (!USE_PROJECTED_THEN_CARTO || switchingMaps || !isLeafletVisible()) {
-          return;
-        }
-        var delta = event.deltaY != null ? event.deltaY : -event.wheelDelta;
-        if (delta > 0 && map.getZoom() <= getCartoMinZoom()) {
-          if (event.preventDefault) {
-            event.preventDefault();
-          }
-          if (event.stopPropagation) {
-            event.stopPropagation();
-          }
-          switchToProjectedMap();
-        }
-      }
-
-      if (map.getContainer && map.getContainer()) {
-        var mapContainerEl = map.getContainer();
-        mapContainerEl.addEventListener("wheel", handleCartoWheelOut, true);
-        mapContainerEl.addEventListener("mousewheel", handleCartoWheelOut, true);
+      var mapContainerEl = document.getElementById("mapContainer");
+      if (mapContainerEl) {
+        mapContainerEl.addEventListener("wheel", handleMapWheel, true);
       }
 
       // Get map ready for an SVG layer
@@ -836,26 +952,19 @@ var navMap = (function () {
     //   }
     // },
 
-    "selectBaseMap": function (zoom) {
-      if (zoom < 5) {
-        if (map.hasLayer(cartoVoyagerLabels)) {
-          map.removeLayer(cartoVoyagerLabels);
-          map.addLayer(cartoVoyager);
-        }
-      } else if (zoom > 4 && zoom < 7) {
-        if (map.hasLayer(cartoVoyagerLabels)) {
-          map.removeLayer(cartoVoyagerLabels);
-          map.addLayer(cartoVoyager);
-        }
-      } else if (map.hasLayer(cartoVoyager)) {
-        map.removeLayer(cartoVoyager);
-      } else if (map.hasLayer(cartoVoyagerLabels)) {
-        map.addLayer(cartoVoyagerLabels);
-        map.removeLayer(cartoVoyager);
+    "selectBaseMap": function () {
+      if (map.hasLayer(cartoVoyagerLabels)) {
+        map.removeLayer(cartoVoyagerLabels);
+      }
+      if (!map.hasLayer(cartoVoyager)) {
+        map.addLayer(cartoVoyager);
       }
     },
 
-    "refresh": function(reset) {
+    "refresh": function(reset, opts) {
+      if (opts && opts.refreshTimeBars) {
+        pendingTimeBarsRefresh = true;
+      }
       paleo_nav.showLoading();
 
       if ((prevzoom - map.getZoom()) != 0) {
@@ -2245,7 +2354,7 @@ var navMap = (function () {
       if (d3.select("#reconstructMap").style("display") === "block") {
         reconstructMap.rotate(filters.selectedInterval);
       } else {
-        navMap.refresh("reset");
+        navMap.refresh("reset", { refreshTimeBars: true });
       }
 
     });
@@ -2268,7 +2377,7 @@ var navMap = (function () {
       if (d3.select("#reconstructMap").style("display") === "block") {
         reconstructMap.rotate(navMap.filters.selectedInterval);
       } else {
-        navMap.refresh("reset");
+        navMap.refresh("reset", { refreshTimeBars: true });
       }
     }
   },
@@ -2496,7 +2605,7 @@ var navMap = (function () {
           if (d3.select("#reconstructMap").style("display") === "block") {
             reconstructMap.rotate(navMap.filters.selectedInterval);
           } else {
-            navMap.refresh("reset");
+            navMap.refresh("reset", { refreshTimeBars: true });
           }
         } else {
           alert("No taxa with this name found");
@@ -2520,7 +2629,7 @@ var navMap = (function () {
       if (d3.select("#reconstructMap").style("display") === "block") {
         reconstructMap.rotate(filters.selectedInterval);
       } else {
-        navMap.refresh("reset");
+        navMap.refresh("reset", { refreshTimeBars: true });
       }
     }
   },
@@ -2537,7 +2646,7 @@ var navMap = (function () {
       if (d3.select("#reconstructMap").style("display") === "block") {
         reconstructMap.rotate(filters.selectedInterval);
       } else {
-        navMap.refresh("reset");
+        navMap.refresh("reset", { refreshTimeBars: true });
       }
     }
   },
@@ -2555,7 +2664,7 @@ var navMap = (function () {
       if (d3.select("#reconstructMap").style("display") === "block") {
         reconstructMap.rotate(filters.selectedInterval);
       } else {
-        navMap.refresh("reset");
+        navMap.refresh("reset", { refreshTimeBars: true });
       }
     }      
   },
@@ -2569,7 +2678,7 @@ var navMap = (function () {
 	filters.stratigraphy.name = rock.nam;
 	filters.stratigraphy.rank = (rock.type) ? rock.type : rock.rank;
 	navMap.updateFilterList("stratigraphy");
-	navMap.refresh("reset");
+	navMap.refresh("reset", { refreshTimeBars: true });
     }
   },
 
@@ -2903,7 +3012,7 @@ var navMap = (function () {
     if (d3.select("#reconstructMap").style("display") === "block") {
       reconstructMap.rotate(filters.selectedInterval);
     } else {
-      navMap.refresh("reset");
+      navMap.refresh("reset", { refreshTimeBars: true });
     }
   },
 
