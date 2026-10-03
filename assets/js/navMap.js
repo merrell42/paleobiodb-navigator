@@ -100,7 +100,9 @@ var navMap = (function () {
     detailRegionalMax: 4,
     detailBinMax: 6.5,
     leafletCompatBase: 2,
-    leafletCompatScalePerLevel: 0.85
+    leafletCompatScalePerLevel: 0.85,
+    // Carto raster tiles are blank from level 18 up, which shows as a gray map.
+    cartoMaxZoom: 17
   };
 
   var MARKER = {
@@ -538,7 +540,7 @@ var navMap = (function () {
       map = new L.Map('map', {
         center: new L.LatLng(7, 0),
         zoom: USE_PROJECTED_THEN_CARTO ? getCartoMinZoom() : 2,
-        maxZoom: 38,
+        maxZoom: ZOOM.cartoMaxZoom,
         minZoom: USE_PROJECTED_THEN_CARTO ? getCartoMinZoom() : 2,
         zoomControl: false,
         inertiaDeceleration: 6000,
